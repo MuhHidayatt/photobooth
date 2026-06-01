@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📸 POSEAN — Premium Online Photobooth
 
-## Getting Started
+> **"Pose Dulu, Cerita Nanti."**
+> Aplikasi photobooth online premium bertema playful, minimal, dan retro-modern yang dirancang untuk menghasilkan strip foto berkualitas HD ala Life4Cuts / Photoism langsung dari browser Anda.
 
-First, run the development server:
+---
+
+## ✨ Fitur Unggulan (Key Features)
+
+### 1. Tata Letak Responsif Desktop & Mobile (Responsive Optimization)
+*   **Desktop Experience (1024px+):** Layout dua kolom workspace premium (40% panel pengaturan & kustomisasi, 60% pratinjau strip foto interaktif penuh tanpa scrolling berlebih).
+*   **Mobile & Tablet View:** Tampilan ringkas, ramah sentuhan, dan navigasi bottom bar yang fluid.
+
+### 2. Sistem Animasi GIF Murni (Pure Slideshow GIF Engine)
+*   **Slideshow Format:** Menghasilkan ekspor GIF murni yang berputar melingkar (looping) hanya dari foto mentah hasil jepretan Anda, **tanpa border, watermark, branding, ataupun stiker/doodle**.
+*   **Unmirrored Output (Tidak Mirror):** Dilengkapi dengan konversi canvas otomatis (`flipImageHorizontally`) untuk menjamin semua teks dan pose di dalam hasil unduhan GIF **terbaca normal (tidak terbalik / mirror)**.
+*   **Original Aspect Ratio:** Dimensi file GIF secara dinamis membaca ukuran asli resolusi kamera Anda (tanpa pemotongan/cropping atau distorsi gambar).
+*   **Speed Selector:** Pilihan kecepatan putar GIF instan:
+    *   **Slow:** Interval 0.3s (300ms)
+    *   **Normal:** Interval 0.2s (200ms)
+    *   **Fast:** Interval 0.1s (100ms)
+
+### 3. Kustomisasi Strip Foto Lengkap (Rich Customization Panel)
+*   **Themes & Borders:** Beragam pilihan warna latar belakang retro-minimalis dengan border kontras tinggi.
+*   **Interactive Stickers & Doodles:** Stiker lucu yang dapat digeser (drag), diputar (rotate), diperbesar/perkecil (resize), dan dihapus secara interaktif langsung di atas strip foto.
+*   **Custom Captions:** Tambahkan teks penutup kustom di bagian bawah strip lengkap dengan penanggalan otomatis.
+
+### 4. WYSIWYG Export Page
+*   **Format Selector:** Pilih format unduhan dengan pratinjau instan yang akurat:
+    *   **PHOTO STRIP:** Menampilkan strip foto lengkap beresolusi tinggi (format JPG).
+    *   **ANIMATED GIF:** Menampilkan slideshow animasi murni dari jepretan Anda (format GIF).
+*   **Zero Compression:** Proses ekspor berkualitas tinggi untuk cetakan fisik maupun konsumsi media sosial.
+
+---
+
+## 🛠️ Teknologi & Pustaka (Tech Stack)
+
+*   **Framework:** [Next.js 15+](https://nextjs.org/) (dengan App Router & struktur modular)
+*   **Library UI & Animasi:** React, Tailwind CSS (untuk utilities dasar), [Framer Motion](https://www.framer.com/motion/) (untuk transisi antar halaman dan interaksi stiker)
+*   **State Management:** [Zustand](https://github.com/pmndrs/zustand) (mengelola alur jepretan kamera secara global)
+*   **Media Processing:** 
+    *   [html-to-image](https://github.com/bubkoo/html-to-image) (untuk render strip JPG resolusi 5x piksel rasio super tajam)
+    *   [gifshot](https://github.com/yahoo/gifshot) (engine client-side untuk merangkai slideshow GIF cepat)
+*   **Audio FX:** Integrasi efek suara countdown *tick-tick* dan jepretan kamera mekanis (*shutter sound*).
+
+---
+
+## 📂 Struktur Folder Proyek (Folder Directory)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+├── public/                 # Aset gambar statis, favicon, & PWA manifest
+│   ├── logo.png            # Logo utama POSEAN (kuning playful)
+│   └── logo-depan.png      # Logo landing page beresolusi tinggi
+├── src/
+│   ├── app/
+│   │   ├── globals.css     # Gaya CSS kustom & reset global
+│   │   ├── layout.tsx      # Kerangka layout metadata & ikon tab
+│   │   └── page.tsx        # Titik masuk utama aplikasi (Entrypoint)
+│   ├── components/
+│   │   ├── Photobooth.tsx  # Mesin utama alur kamera, editor, & ekspor
+│   │   └── StickerAssets.tsx # Katalog stiker, dekorasi, & ilustrasi lucu
+│   ├── store/
+│   │   └── usePhotoboothStore.ts # Penyimpanan state global jepretan foto
+│   └── utils/
+│       └── audio.ts        # Utilitas pemutar efek suara terintegrasi
+├── tsconfig.json           # Konfigurasi TypeScript ketat
+└── package.json            # Daftar dependensi pustaka & skrip proyek
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Memulai Pengembangan Lokal (Getting Started)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1.  **Clone repositori ini:**
+    ```bash
+    git clone https://github.com/MuhHidayatt/photobooth.git
+    cd photobooth
+    ```
 
-## Learn More
+2.  **Instalasi dependensi proyek:**
+    ```bash
+    npm install
+    ```
 
-To learn more about Next.js, take a look at the following resources:
+3.  **Jalankan server pengembangan lokal:**
+    ```bash
+    npm run dev
+    ```
+    Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4.  **Verifikasi & Pembuatan Build Produksi:**
+    ```bash
+    npm run build
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🔒 Privasi Pengguna (Client-Side & Secure)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Semua proses pengolahan media—mulai dari pengambilan jepretan kamera, rotasi/drag stiker, perangkaian canvas JPG resolusi tinggi, hingga pembuatan slideshow GIF anti-mirror—**dilakukan 100% di browser pengguna secara lokal (client-side)**. Tidak ada data foto yang diunggah ke server eksternal, menjamin privasi penuh bagi para pengguna Posean.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+✨ *Dibuat dengan penuh cinta untuk mengabadikan momen-momen terbaikmu. Yuk, foto-foto dulu!* ✨
