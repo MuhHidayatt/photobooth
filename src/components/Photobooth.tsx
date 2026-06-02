@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import Webcam from "react-webcam";
 import { motion, AnimatePresence } from "framer-motion";
 import { toJpeg } from "html-to-image";
 import gifshot from "gifshot";
@@ -80,6 +79,17 @@ export default function Photobooth() {
   const [currentFrameIndex, setCurrentFrameIndex] = useState<number>(0);
   const [flashActive, setFlashActive] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+
+  // Load saved camera preference on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("photobooth_facingMode");
+      if (stored === "user" || stored === "environment") {
+        setFacingMode(stored);
+      }
+    }
+  }, []);
+
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
   const [editorTab, setEditorTab] = useState<"theme" | "sticker" | "caption">("theme");
   const [exportFormat, setExportFormat] = useState<"jpg" | "gif">("jpg");
@@ -93,7 +103,9 @@ export default function Photobooth() {
   };
 
   // References
-  const webcamRef = useRef<Webcam>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
+  const isStartingCameraRef = useRef<boolean>(false);
   const editorStripRef = useRef<HTMLDivElement>(null);
   const dragContainerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; stickerX: number; stickerY: number } | null>(null);
@@ -142,18 +154,87 @@ export default function Photobooth() {
     if (type === "shutter") audio.playShutter();
   };
 
-  // Check and request camera permission
+  const stopCamera = () => {
+    console.log("[Camera] Stopping previous camera stream...");
+    if (activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((track) => {
+        track.stop();
+        console.log(`[Camera] Stopped track: ${track.label}`);
+      });
+      activeStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    console.log("[Camera] Camera stopped");
+  };
+
+  const startCamera = async (currentFacingMode: "user" | "environment") => {
+    if (isStartingCameraRef.current) {
+      console.log("[Camera] Already starting camera, ignoring duplicate call");
+      return;
+    }
+    isStartingCameraRef.current = true;
+
+    try {
+      console.log("[Camera] Starting camera - releasing old resources first...");
+      stopCamera();
+
+      console.log(`[Camera] Requesting camera access for facingMode: ${currentFacingMode}`);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: currentFacingMode,
+        },
+        audio: false,
+      });
+
+      console.log("[Camera] Camera stream acquired successfully");
+      activeStreamRef.current = stream;
+      setCameraAccess(true);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        console.log("[Camera] Video element playing stream");
+      }
+    } catch (err) {
+      console.error("[Camera] Error starting camera:", err);
+      setCameraAccess(false);
+      stopCamera();
+    } finally {
+      isStartingCameraRef.current = false;
+      console.log("[Camera] startCamera workflow finished");
+    }
+  };
+
+  const getScreenshot = () => {
+    if (!videoRef.current) return null;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 1.0);
+    }
+    return null;
+  };
+
+  // Safe Camera Lifecycle triggers
   useEffect(() => {
     if (step === "camera") {
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
-        .then(() => setCameraAccess(true))
-        .catch((err) => {
-          console.error("Camera access denied or unavailable:", err);
-          setCameraAccess(false);
-        });
+      startCamera(facingMode);
+    } else {
+      stopCamera();
     }
-  }, [step]);
+
+    return () => {
+      stopCamera();
+    };
+  }, [step, facingMode]);
 
   // Clean stickers when layout changes
   useEffect(() => {
@@ -220,11 +301,12 @@ export default function Photobooth() {
       playSound("shutter");
 
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const snapshot = webcamRef.current?.getScreenshot();
+      const snapshot = getScreenshot();
       setFlashActive(false);
 
       if (snapshot) {
-        addCapturedPhoto(snapshot, activeIndex);
+        const processed = await processCapturedPhoto(snapshot, facingMode);
+        addCapturedPhoto(processed, activeIndex);
       }
 
       if (!isSingleRetake && i < targetFrames - 1) {
@@ -283,19 +365,52 @@ export default function Photobooth() {
     window.addEventListener("pointerup", handlePointerUp);
   };
 
-  // Helper to flip image horizontally (to make GIF unmirrored)
-  const flipImageHorizontally = (dataUrl: string): Promise<string> => {
+  // Helper to process captured photo (crop to 4/3 aspect ratio and flip horizontally if front camera)
+  const processCapturedPhoto = (dataUrl: string, mode: "user" | "environment"): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
+        const sw = img.naturalWidth || img.width;
+        const sh = img.naturalHeight || img.height;
+        const targetAspect = 4 / 3;
+        
+        let cw = sw;
+        let ch = sh;
+        let cx = 0;
+        let cy = 0;
+
+        if (sw / sh > targetAspect) {
+          ch = sh;
+          cw = sh * targetAspect;
+          cx = (sw - cw) / 2;
+          cy = 0;
+        } else {
+          cw = sw;
+          ch = sw / targetAspect;
+          cx = 0;
+          cy = (sh - ch) / 2;
+        }
+
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        canvas.width = cw;
+        canvas.height = ch;
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(img, 0, 0);
+          if (mode === "user") {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+          }
+          ctx.drawImage(
+            img,
+            cx,
+            cy,
+            cw,
+            ch,
+            0,
+            0,
+            cw,
+            ch
+          );
           resolve(canvas.toDataURL("image/jpeg", 0.95));
         } else {
           resolve(dataUrl);
@@ -312,14 +427,18 @@ export default function Photobooth() {
     setIsGeneratingJpg(true);
     setIsGeneratingGif(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Save current scale and temporarily reset it to 1 for clean, un-scaled JPG export
+    const originalScale = previewScale;
+    setPreviewScale(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     // 1. Generate high-res JPG
     try {
       if (editorStripRef.current) {
         const jpgDataUrl = await toJpeg(editorStripRef.current, {
           quality: 1.0,
-          pixelRatio: 5,
+          pixelRatio: 4, // 4x is high-resolution (1200px width) and very crisp
           backgroundColor: selectedTheme.bg,
         });
         setExportJpgUrl(jpgDataUrl);
@@ -328,32 +447,40 @@ export default function Photobooth() {
       console.error("JPEG generation failed:", e);
     } finally {
       setIsGeneratingJpg(false);
+      // Restore the preview scale!
+      setPreviewScale(originalScale);
     }
 
-    // 2. Generate HD GIF from original captured photos (as a pure slideshow, unmirrored)
+    // 2. Generate HD GIF from original captured photos (as a pure slideshow)
     try {
       if (capturedPhotos.length > 0) {
         const intervalVal = speedMap[gifSpeed];
+        setGifFrames(capturedPhotos);
 
-        // Flip photos horizontally so they are not mirrored!
-        const processedPhotos = await Promise.all(
-          capturedPhotos.map((photo) => flipImageHorizontally(photo))
-        );
-        setGifFrames(processedPhotos);
-
-        // Measure natural dimensions from the first captured photo to keep 100% original aspect ratio
+        // Measure natural dimensions from the first captured photo
         const img = new Image();
         img.onload = () => {
-          const originalW = img.naturalWidth || 640;
-          const originalH = img.naturalHeight || 480;
+          // Scale down dimensions to keep it high performance and prevent mobile crashes
+          const maxDim = 640;
+          let gifW = img.naturalWidth || 640;
+          let gifH = img.naturalHeight || 480;
+          if (gifW > maxDim || gifH > maxDim) {
+            if (gifW > gifH) {
+              gifH = Math.round((gifH * maxDim) / gifW);
+              gifW = maxDim;
+            } else {
+              gifW = Math.round((gifW * maxDim) / gifH);
+              gifH = maxDim;
+            }
+          }
 
           gifshot.createGIF(
             {
-              images: processedPhotos,
-              gifWidth: originalW,
-              gifHeight: originalH,
+              images: capturedPhotos,
+              gifWidth: gifW,
+              gifHeight: gifH,
               interval: intervalVal,
-              numFrames: processedPhotos.length,
+              numFrames: capturedPhotos.length,
               frameDuration: intervalVal * 100, // Perbaikan: interval * 100 untuk centiseconds
               numWorkers: 2,
             },
@@ -372,11 +499,11 @@ export default function Photobooth() {
           // Fallback to standard 640x480 if natural dimensions fail to read
           gifshot.createGIF(
             {
-              images: processedPhotos,
+              images: capturedPhotos,
               gifWidth: 640,
               gifHeight: 480,
               interval: intervalVal,
-              numFrames: processedPhotos.length,
+              numFrames: capturedPhotos.length,
               frameDuration: intervalVal * 100,
               numWorkers: 2,
             },
@@ -391,7 +518,7 @@ export default function Photobooth() {
             }
           );
         };
-        img.src = processedPhotos[0];
+        img.src = capturedPhotos[0];
       } else {
         setIsGeneratingGif(false);
         setStep("export");
@@ -442,9 +569,19 @@ export default function Photobooth() {
       // Ambil dimensi dari gambar pertama
       const img = new Image();
       img.onload = () => {
-        const originalW = img.naturalWidth || 640;
-        const originalH = img.naturalHeight || 480;
-        createGif(originalW, originalH);
+        const maxDim = 640;
+        let gifW = img.naturalWidth || 640;
+        let gifH = img.naturalHeight || 480;
+        if (gifW > maxDim || gifH > maxDim) {
+          if (gifW > gifH) {
+            gifH = Math.round((gifH * maxDim) / gifW);
+            gifW = maxDim;
+          } else {
+            gifW = Math.round((gifW * maxDim) / gifH);
+            gifH = maxDim;
+          }
+        }
+        createGif(gifW, gifH);
       };
 
       img.onerror = () => {
@@ -520,7 +657,7 @@ export default function Photobooth() {
                   <img
                     src={photo}
                     alt={`Snap ${index + 1}`}
-                    className="w-full h-full object-contain object-center scale-x-[-1] transition-all duration-150"
+                    className="w-full h-full object-cover object-center transition-all duration-150"
                   />
                   <div className="absolute inset-0 pointer-events-none opacity-[0.02] mix-blend-overlay bg-noise" />
 
@@ -747,7 +884,6 @@ export default function Photobooth() {
                       <button
                         onClick={() => {
                           setCameraAccess(null);
-                          navigator.mediaDevices.getUserMedia({ video: true }).then(() => setCameraAccess(true)).catch(() => setCameraAccess(false));
                         }}
                         className="py-1.5 px-4 bg-white border border-slate-855 rounded-none text-[10px] font-bold text-slate-800 font-mono hover:bg-slate-50 transition-colors"
                       >
@@ -756,17 +892,12 @@ export default function Photobooth() {
                     </div>
                   ) : (
                     <>
-                      <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        screenshotQuality={1.0}
-                        videoConstraints={{
-                          width: { ideal: 1920 },
-                          height: { ideal: 1080 },
-                          facingMode: facingMode,
-                        }}
-                        className="w-full h-full object-contain object-center scale-x-[-1]"
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover object-center ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
                       />
 
                       {flashActive && <div className="absolute inset-0 flash-effect z-40" />}
@@ -812,6 +943,38 @@ export default function Photobooth() {
                             }`}
                         >
                           5s
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isCapturing && (
+                    <div className="flex items-center justify-between w-full bg-white border border-slate-800 px-3 py-2.5 rounded-none font-mono text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-20 select-none">
+                      <span className="font-bold text-slate-600">CAMERA:</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setFacingMode("user");
+                            if (typeof window !== "undefined") {
+                              sessionStorage.setItem("photobooth_facingMode", "user");
+                            }
+                          }}
+                          className={`px-2 py-0.5 rounded-none font-bold transition-all ${facingMode === "user" ? "bg-slate-800 text-white" : "text-slate-400"
+                            }`}
+                        >
+                          Front Camera
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFacingMode("environment");
+                            if (typeof window !== "undefined") {
+                              sessionStorage.setItem("photobooth_facingMode", "environment");
+                            }
+                          }}
+                          className={`px-2 py-0.5 rounded-none font-bold transition-all ${facingMode === "environment" ? "bg-slate-800 text-white" : "text-slate-400"
+                            }`}
+                        >
+                          Back Camera
                         </button>
                       </div>
                     </div>
@@ -864,7 +1027,13 @@ export default function Photobooth() {
                           </button>
 
                           <button
-                            onClick={() => setFacingMode(facingMode === "user" ? "environment" : "user")}
+                            onClick={() => {
+                              const newMode = facingMode === "user" ? "environment" : "user";
+                              setFacingMode(newMode);
+                              if (typeof window !== "undefined") {
+                                sessionStorage.setItem("photobooth_facingMode", newMode);
+                              }
+                            }}
                             title="Switch Camera"
                             className="py-2.5 px-3 border border-slate-800 bg-white text-slate-850 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 cursor-pointer flex items-center justify-center"
                           >
@@ -1115,7 +1284,8 @@ export default function Photobooth() {
                         backgroundColor: selectedTheme.bg,
                         color: selectedTheme.text,
                         border: `1.5px solid ${selectedTheme.text}`,
-                        height: "100%",
+                        height: selectedLayout.frames === 4 ? "980px" : selectedLayout.frames === 3 ? "760px" : "545px",
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
                       }}
                     >
                       <div className="relative z-10 w-full flex-1 flex flex-col" ref={dragContainerRef}>
