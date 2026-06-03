@@ -53,7 +53,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const session = res.data?.session;
       if (session) {
         const user = session.user;
-        set({ user });
+        const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || "";
+        const email = user.email || "";
+        set({ 
+          user,
+          profile: {
+            id: user.id,
+            email: email,
+            display_name: displayName,
+            avatar_url: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${displayName || 'user'}`,
+            created_at: user.created_at || new Date().toISOString()
+          }
+        });
         get().checkSession();
       } else {
         set({ user: null, profile: null, loading: false, isInitialized: true });
@@ -62,7 +73,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
       if (session) {
-        set({ user: session.user });
+        const user = session.user;
+        const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || "";
+        const email = user.email || "";
+        set({ 
+          user,
+          profile: {
+            id: user.id,
+            email: email,
+            display_name: displayName,
+            avatar_url: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${displayName || 'user'}`,
+            created_at: user.created_at || new Date().toISOString()
+          }
+        });
         await get().checkSession();
       } else {
         set({ user: null, profile: null, loading: false });
@@ -93,11 +116,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (error && error.code === "PGRST116") {
         // Profile doesn't exist yet, insert a basic one
+        const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || "";
         const newProfile = {
           id: user.id,
           email: user.email || "",
-          display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "User",
-          avatar_url: user.user_metadata?.avatar_url || "",
+          display_name: displayName,
+          avatar_url: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${displayName || 'user'}`,
         };
 
         const { data: inserted, error: insertError } = await supabase
@@ -109,8 +133,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (!insertError) {
           set({ profile: inserted as Profile });
         }
-      } else if (!error) {
-        set({ profile: profile as Profile });
+      } else if (!error && profile) {
+        // Ensure display_name is not blank
+        const resolvedName = profile.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email || "";
+        set({ 
+          profile: { 
+            ...profile, 
+            display_name: resolvedName 
+          } as Profile 
+        });
       }
     } catch (err) {
       console.error("Error fetching user profile:", err);
@@ -120,18 +151,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithGoogle: async () => {
-    if (!isSupabaseConfigured) {
-      // Mock Google sign in
-      const mockUser: Profile = {
-        id: "mock_google_user",
-        email: "google.demo@posean.com",
-        display_name: "Google Explorer",
-        avatar_url: "https://lh3.googleusercontent.com/a/default-user=s96-c",
-        created_at: new Date().toISOString(),
-      };
-      localStorage.setItem("posean_mock_user", JSON.stringify(mockUser));
-      set({ user: mockUser, profile: mockUser });
-      return;
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error("Supabase is not configured. Google Sign-In requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in environment variables.");
     }
 
     const { error } = await supabase.auth.signInWithOAuth({
