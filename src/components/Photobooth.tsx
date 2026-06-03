@@ -97,9 +97,9 @@ export default function Photobooth() {
   const [gifFrames, setGifFrames] = useState<string[]>([]);
 
   const speedMap = {
-    slow: 0.3,
-    normal: 0.2,
-    fast: 0.1
+    slow: 0.15,
+    normal: 0.1,
+    fast: 0.05
   };
 
   // References
@@ -1522,10 +1522,17 @@ export default function Photobooth() {
         </div>
       </main>
 
-      <footer className="py-3 mt-8 border-t border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center select-none">
-        <span className="text-[8px] font-mono font-bold tracking-[0.25em] text-slate-400 uppercase">
-          ✨ GOOD MOMENTS PHOTOBOOTH ✨
+      <footer className="py-5 mt-8 border-t border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center select-none gap-1 font-mono">
+        <span className="text-[10px] font-bold tracking-[0.25em] text-slate-500 uppercase">
+          GOOD MOMENTS
         </span>
+        <div 
+          className="flex flex-col items-center text-slate-400 leading-normal"
+          style={{ fontSize: "11px", letterSpacing: "1px", opacity: 0.75 }}
+        >
+          <span>Posean © 2026</span>
+          <span>Developed by Hidayat06</span>
+        </div>
       </footer>
 
       {/* Share Modal */}
