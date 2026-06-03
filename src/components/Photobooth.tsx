@@ -28,6 +28,9 @@ import {
 import { STICKERS } from "./StickerAssets";
 import { audio } from "@/utils/audio";
 import { usePhotoboothStore, THEMES, LAYOUTS, ActiveSticker } from "@/store/usePhotoboothStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { savePhotobooth } from "@/utils/supabaseHelpers";
+import SaveMemoriesModal from "./SaveMemoriesModal";
 
 export default function Photobooth() {
   // Pull state and actions from Zustand store
@@ -73,6 +76,12 @@ export default function Photobooth() {
   } = usePhotoboothStore();
 
   // Component local states
+  const { user } = useAuthStore();
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [pendingJpg, setPendingJpg] = useState<string | null>(null);
+  const [pendingGif, setPendingGif] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [cameraAccess, setCameraAccess] = useState<boolean | null>(null);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
@@ -427,6 +436,8 @@ export default function Photobooth() {
     setIsGeneratingJpg(true);
     setIsGeneratingGif(true);
 
+    let finalJpgUrl = "";
+
     // Save current scale and temporarily reset it to 1 for clean, un-scaled JPG export
     const originalScale = previewScale;
     setPreviewScale(1);
@@ -441,6 +452,7 @@ export default function Photobooth() {
           pixelRatio: 4, // 4x is high-resolution (1200px width) and very crisp
           backgroundColor: selectedTheme.bg,
         });
+        finalJpgUrl = jpgDataUrl;
         setExportJpgUrl(jpgDataUrl);
       }
     } catch (e) {
@@ -450,6 +462,32 @@ export default function Photobooth() {
       // Restore the preview scale!
       setPreviewScale(originalScale);
     }
+
+    const handleExportsCompleted = async (jpgUrlVal: string, gifUrlVal: string | null) => {
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        setIsSaving(true);
+        try {
+          await savePhotobooth(
+            currentUser.id,
+            selectedTheme.id,
+            caption,
+            selectedLayout.frames,
+            jpgUrlVal,
+            gifUrlVal
+          );
+        } catch (err) {
+          console.error("Auto save failed:", err);
+        } finally {
+          setIsSaving(false);
+        }
+        setStep("export");
+      } else {
+        setPendingJpg(jpgUrlVal);
+        setPendingGif(gifUrlVal);
+        setSaveModalOpen(true);
+      }
+    };
 
     // 2. Generate HD GIF from original captured photos (as a pure slideshow)
     try {
@@ -485,13 +523,15 @@ export default function Photobooth() {
               numWorkers: 2,
             },
             (obj) => {
+              let finalGif = null;
               if (!obj.error) {
                 setExportGifUrl(obj.image);
+                finalGif = obj.image;
               } else {
                 console.error("Gifshot failed:", obj.errorMsg);
               }
               setIsGeneratingGif(false);
-              setStep("export");
+              handleExportsCompleted(finalJpgUrl, finalGif);
             }
           );
         };
@@ -508,25 +548,27 @@ export default function Photobooth() {
               numWorkers: 2,
             },
             (obj) => {
+              let finalGif = null;
               if (!obj.error) {
                 setExportGifUrl(obj.image);
+                finalGif = obj.image;
               } else {
                 console.error("Gifshot failed:", obj.errorMsg);
               }
               setIsGeneratingGif(false);
-              setStep("export");
+              handleExportsCompleted(finalJpgUrl, finalGif);
             }
           );
         };
         img.src = capturedPhotos[0];
       } else {
         setIsGeneratingGif(false);
-        setStep("export");
+        handleExportsCompleted(finalJpgUrl, null);
       }
     } catch (e) {
       console.error("GIF export failed:", e);
       setIsGeneratingGif(false);
-      setStep("export");
+      handleExportsCompleted(finalJpgUrl, null);
     }
   };
 
@@ -698,38 +740,38 @@ export default function Photobooth() {
     );
   };
 
+  const handleSkipSave = () => {
+    setSaveModalOpen(false);
+    setStep("export");
+  };
+
+  const handleSuccessLogin = async () => {
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser && pendingJpg) {
+      setIsSaving(true);
+      try {
+        await savePhotobooth(
+          currentUser.id,
+          selectedTheme.id,
+          caption,
+          selectedLayout.frames,
+          pendingJpg,
+          pendingGif
+        );
+      } catch (err) {
+        console.error("Failed to save photobooth after login:", err);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+    setStep("export");
+    setSaveModalOpen(false);
+  };
+
   return (
-    <div className="flex-1 w-full max-w-[1400px] mx-auto flex flex-col bg-[#F9F9F9] relative min-h-screen border-x border-slate-200/60 shadow-2xl overflow-hidden font-sans">
-
-      {/* Global Mute Button */}
-      <div className="absolute top-4 right-4 z-40">
-        <button
-          onClick={() => setAudioMuted(!audioMuted)}
-          className="p-2 rounded-none border border-slate-800 bg-white hover:bg-slate-50 transition-colors focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer"
-          title={audioMuted ? "Unmute Sound" : "Mute Sound"}
-        >
-          {audioMuted ? <VolumeX size={15} className="text-slate-800" /> : <Volume2 size={15} className="text-slate-800" />}
-        </button>
-      </div>
-
+    <div className="flex-1 flex flex-col w-full relative bg-[#F9F9F9]">
       <main className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative z-10">
-
-        {/* Header */}
-        <header className="py-3 lg:py-5 flex flex-col items-center justify-center border-b border-slate-200/65 w-full mb-5 lg:mb-8">
-          <motion.div
-            initial={{ y: -5, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="flex flex-col items-center text-center gap-0.5 select-none"
-          >
-            <h1 className="text-xl lg:text-3xl font-bold tracking-[0.1em] text-slate-800 font-mono uppercase bg-white border border-slate-800 px-3.5 py-0.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-              ✨ Good Moments
-            </h1>
-            <p className="text-[8px] lg:text-[10px] uppercase tracking-[0.3em] text-slate-400 font-mono mt-1.5 font-semibold">
-              Pose Dulu Cerita Nanti.
-            </p>
-          </motion.div>
-        </header>
-
+        
         {/* Step Controller */}
         <div className="flex-1 flex flex-col justify-center items-center w-full px-1 sm:px-2 lg:px-4">
           <AnimatePresence mode="wait">
@@ -1522,18 +1564,6 @@ export default function Photobooth() {
         </div>
       </main>
 
-      <footer className="py-5 mt-8 border-t border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center select-none gap-1 font-mono">
-        <span className="text-[10px] font-bold tracking-[0.25em] text-slate-500 uppercase">
-          GOOD MOMENTS
-        </span>
-        <div 
-          className="flex flex-col items-center text-slate-400 leading-normal"
-          style={{ fontSize: "11px", letterSpacing: "1px", opacity: 0.75 }}
-        >
-          <span>Posean © 2026</span>
-          <span>Developed by Hidayat06</span>
-        </div>
-      </footer>
 
       {/* Share Modal */}
       {showShareModal && (
@@ -1596,6 +1626,29 @@ export default function Photobooth() {
           </div>
         </div>
       )}
+
+      {/* Cloud Saving Loader Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 select-none">
+          <div className="bg-white border border-slate-800 p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center gap-4 text-center max-w-sm mx-4 animate-in fade-in zoom-in-95 duration-150 font-mono">
+            <RefreshCw size={36} className="animate-spin text-slate-800" />
+            <div className="space-y-1.5">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">Saving to Cloud</h3>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest leading-relaxed">
+                Uploading high-res strip and animation loop to your profile...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Guest Mode Save Prompt Modal */}
+      <SaveMemoriesModal
+        isOpen={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSkip={handleSkipSave}
+        onSuccessLogin={handleSuccessLogin}
+      />
     </div>
   );
 }

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#FCF8F2] selection:bg-[#EEDAA2] selection:text-[#4A3E3D]">
+    <div className="flex-1 flex flex-col w-full">
       <Photobooth />
     </div>
   );
