@@ -3,10 +3,12 @@ import { create } from "zustand";
 export type Step = "landing" | "layout" | "camera" | "editor" | "export";
 
 export interface LayoutOption {
-  id: number;
+  id: number | string;
   name: string;
   frames: number;
   previewClass: string;
+  type: "strip" | "grid";
+  badge?: string;
 }
 
 export interface ActiveSticker {
@@ -19,9 +21,94 @@ export interface ActiveSticker {
 }
 
 export interface PhotoEffect {
-  filter: string; // "none" | "warm" | "sepia" | "noir" | "sage" | "summer"
+  filter: string; // Filter id, e.g. "none" | "noir" | "warm" | "pastel" | "vintage" | "summer" | "sage" | "cyber"
   rotation: number; // analog tilt
 }
+
+export interface FilterOption {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+  cssClass: string;
+  cssFilter: string;
+  accentColor: string;
+}
+
+export const FILTERS: FilterOption[] = [
+  {
+    id: "none",
+    name: "Natural",
+    badge: "Original",
+    description: "Tanpa efek, warna alami kamera",
+    cssClass: "filter-none",
+    cssFilter: "none",
+    accentColor: "#94A3B8",
+  },
+  {
+    id: "noir",
+    name: "Mono Noir",
+    badge: "Life4Cuts",
+    description: "Monokrom kontras tinggi khas photobooth Korea",
+    cssClass: "filter-noir",
+    cssFilter: "grayscale(1) contrast(1.28) brightness(0.98)",
+    accentColor: "#0F172A",
+  },
+  {
+    id: "warm",
+    name: "Kodak Warm",
+    badge: "Warm 35mm",
+    description: "Sentuhan keemasan hangat analog 35mm",
+    cssClass: "filter-warm",
+    cssFilter: "sepia(0.28) saturate(1.22) contrast(1.08) brightness(1.04)",
+    accentColor: "#D97706",
+  },
+  {
+    id: "pastel",
+    name: "Soft Pastel",
+    badge: "Dreamy",
+    description: "Tone cerah lembut merona dan glowing",
+    cssClass: "filter-pastel",
+    cssFilter: "contrast(0.95) brightness(1.08) saturate(1.15) hue-rotate(-5deg)",
+    accentColor: "#EC4899",
+  },
+  {
+    id: "vintage",
+    name: "Retro 90s",
+    badge: "Faded Film",
+    description: "Estetika luntur nostalgic kamera analog 90s",
+    cssClass: "filter-vintage",
+    cssFilter: "sepia(0.42) contrast(0.95) saturate(0.9) brightness(1.02)",
+    accentColor: "#B45309",
+  },
+  {
+    id: "summer",
+    name: "Summer Pop",
+    badge: "Vibrant",
+    description: "Saturasi tinggi ceria dan penuh energi",
+    cssClass: "filter-summer",
+    cssFilter: "contrast(1.12) saturate(1.35) brightness(1.05) sepia(0.08)",
+    accentColor: "#EF4444",
+  },
+  {
+    id: "sage",
+    name: "Muted Olive",
+    badge: "Minimalist",
+    description: "Tone hijau sage lembut dan menenangkan",
+    cssClass: "filter-sage",
+    cssFilter: "hue-rotate(35deg) saturate(0.85) contrast(1.05) sepia(0.12)",
+    accentColor: "#15803D",
+  },
+  {
+    id: "cyber",
+    name: "Cyber Chill",
+    badge: "Y2K Cool",
+    description: "Tone dingin futuristik dengan kontras tegas",
+    cssClass: "filter-cyber",
+    cssFilter: "contrast(1.1) brightness(1.02) saturate(1.15) hue-rotate(185deg)",
+    accentColor: "#0284C7",
+  },
+];
 
 export interface ThemeOption {
   id: string;
@@ -98,9 +185,10 @@ export const THEMES: ThemeOption[] = [
 ];
 
 export const LAYOUTS: LayoutOption[] = [
-  { id: 2, name: "2 Foto (Strip)", frames: 2, previewClass: "grid-rows-2" },
-  { id: 3, name: "3 Foto (Strip)", frames: 3, previewClass: "grid-rows-3" },
-  { id: 4, name: "4 Foto (Strip)", frames: 4, previewClass: "grid-rows-4" },
+  { id: 2, name: "2 Foto (Strip)", frames: 2, previewClass: "grid-rows-2", type: "strip", badge: "Classic" },
+  { id: 3, name: "3 Foto (Strip)", frames: 3, previewClass: "grid-rows-3", type: "strip", badge: "Standard" },
+  { id: 4, name: "4 Foto (Strip)", frames: 4, previewClass: "grid-rows-4", type: "strip", badge: "Life4Cuts" },
+  { id: "grid-2x2", name: "Grid 2x2 (Postcard)", frames: 4, previewClass: "grid-cols-2", type: "grid", badge: "Instagram Ready" },
 ];
 
 interface PhotoboothState {
@@ -124,6 +212,13 @@ interface PhotoboothState {
   setActivePhotoEffects: (effects: PhotoEffect[]) => void;
   updateActivePhotoEffect: (index: number, effect: Partial<PhotoEffect>) => void;
 
+  // Filter Options & Scopes
+  globalFilter: string;
+  setGlobalFilter: (filter: string) => void;
+  selectedFilterTarget: "all" | number; // "all" or specific frame index
+  setSelectedFilterTarget: (target: "all" | number) => void;
+  applyFilter: (filterId: string) => void;
+
   // Customization
   selectedTheme: ThemeOption;
   setSelectedTheme: (theme: ThemeOption) => void;
@@ -144,10 +239,14 @@ interface PhotoboothState {
   setExportJpgUrl: (url: string | null) => void;
   exportGifUrl: string | null;
   setExportGifUrl: (url: string | null) => void;
+  exportVideoUrl: string | null;
+  setExportVideoUrl: (url: string | null) => void;
   isGeneratingJpg: boolean;
   setIsGeneratingJpg: (val: boolean) => void;
   isGeneratingGif: boolean;
   setIsGeneratingGif: (val: boolean) => void;
+  isGeneratingVideo: boolean;
+  setIsGeneratingVideo: (val: boolean) => void;
   gifInterval: number; // seconds per frame. e.g., 0.1 for 10fps
 
   // Global settings
@@ -203,6 +302,38 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
       return { activePhotoEffects: newEffects };
     }),
 
+  // Filter Options & Scopes
+  globalFilter: "none",
+  setGlobalFilter: (globalFilter) => set({ globalFilter }),
+  selectedFilterTarget: "all",
+  setSelectedFilterTarget: (selectedFilterTarget) => set({ selectedFilterTarget }),
+  applyFilter: (filterId) =>
+    set((state) => {
+      const frameCount = state.selectedLayout.frames;
+      const currentEffects = [...state.activePhotoEffects];
+      for (let i = 0; i < frameCount; i++) {
+        if (!currentEffects[i]) {
+          currentEffects[i] = { filter: state.globalFilter || "none", rotation: 0 };
+        }
+      }
+
+      if (state.selectedFilterTarget === "all") {
+        const updated = currentEffects.map((eff) => ({ ...eff, filter: filterId }));
+        return {
+          globalFilter: filterId,
+          activePhotoEffects: updated,
+        };
+      } else {
+        const idx = state.selectedFilterTarget;
+        if (idx >= 0 && idx < frameCount) {
+          currentEffects[idx] = { ...currentEffects[idx], filter: filterId };
+        }
+        return {
+          activePhotoEffects: currentEffects,
+        };
+      }
+    }),
+
   // Customization
   selectedTheme: THEMES[1], // Cream default
   setSelectedTheme: (selectedTheme) => set({ selectedTheme }),
@@ -244,10 +375,14 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
   setExportJpgUrl: (exportJpgUrl) => set({ exportJpgUrl }),
   exportGifUrl: null,
   setExportGifUrl: (exportGifUrl) => set({ exportGifUrl }),
+  exportVideoUrl: null,
+  setExportVideoUrl: (exportVideoUrl) => set({ exportVideoUrl }),
   isGeneratingJpg: false,
   setIsGeneratingJpg: (isGeneratingJpg) => set({ isGeneratingJpg }),
   isGeneratingGif: false,
   setIsGeneratingGif: (isGeneratingGif) => set({ isGeneratingGif }),
+  isGeneratingVideo: false,
+  setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),
   gifInterval: 0.1, // 10 FPS
 
   // Global settings
@@ -261,12 +396,16 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
       capturedPhotos: [],
       singleRetakeIndex: null,
       activePhotoEffects: [],
+      globalFilter: "none",
+      selectedFilterTarget: "all",
       stickers: [],
       selectedStickerId: null,
       caption: "",
       exportJpgUrl: null,
       exportGifUrl: null,
+      exportVideoUrl: null,
       isGeneratingJpg: false,
       isGeneratingGif: false,
+      isGeneratingVideo: false,
     })),
 }));

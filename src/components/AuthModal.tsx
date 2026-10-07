@@ -1,36 +1,64 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { Mail, Lock, User, RefreshCw, X, AlertCircle, CheckCircle } from "lucide-react";
+import { Mail, Lock, User, RefreshCw, X, AlertCircle, CheckCircle, KeyRound, ArrowLeft } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type AuthMode = "signin" | "signup" | "reset";
+type AuthMode = "signin" | "signup" | "reset" | "update-password";
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, isConfigured } = useAuthStore();
+  const { 
+    signInWithGoogle, 
+    signInWithEmail, 
+    signUpWithEmail, 
+    resetPassword,
+    updatePassword,
+    isPasswordRecovery,
+    setIsPasswordRecovery,
+    isConfigured 
+  } = useAuthStore();
   
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Automatically switch to update-password mode if user arrived via recovery link
+  useEffect(() => {
+    if (isPasswordRecovery) {
+      setMode("update-password");
+      setError(null);
+      setSuccessMsg(null);
+    }
+  }, [isPasswordRecovery]);
+
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    if (isPasswordRecovery) {
+      setIsPasswordRecovery(false);
+    }
+    setError(null);
+    setSuccessMsg(null);
+    onClose();
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       await signInWithGoogle();
-      onClose();
+      handleClose();
     } catch (err: any) {
       setError(err.message || "Google Login failed");
     } finally {
@@ -47,7 +75,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       if (mode === "signin") {
         await signInWithEmail(email, password);
-        onClose();
+        handleClose();
       } else if (mode === "signup") {
         if (!displayName.trim()) {
           throw new Error("Display Name is required.");
@@ -55,21 +83,30 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         await signUpWithEmail(email, password, displayName);
         setSuccessMsg("Account created! Logging you in...");
         setTimeout(() => {
-          onClose();
+          handleClose();
         }, 1500);
       } else if (mode === "reset") {
-        if (!isConfigured) {
-          throw new Error("Password reset is not supported in local demo mode.");
+        await resetPassword(email);
+        setSuccessMsg(
+          isConfigured
+            ? "Reset link sent! Please check your inbox or spam folder."
+            : "Demo Mode: Password reset request simulated successfully."
+        );
+      } else if (mode === "update-password") {
+        if (password.length < 6) {
+          throw new Error("New password must be at least 6 characters.");
         }
-        // Supabase Reset password
-        const { error: resetError } = await fetch("/api/auth/reset-password", {
-          method: "POST",
-          body: JSON.stringify({ email }),
-        }).then(res => res.json()).catch(() => ({ error: { message: "Failed to send reset link." } }));
-
-        if (resetError) throw new Error(resetError.message);
-        
-        setSuccessMsg("Reset email sent! Please check your inbox.");
+        if (password !== confirmPassword) {
+          throw new Error("Password confirmation does not match.");
+        }
+        await updatePassword(password);
+        setSuccessMsg("Password successfully updated! Please sign in with your new password.");
+        setPassword("");
+        setConfirmPassword("");
+        setTimeout(() => {
+          setMode("signin");
+          setSuccessMsg(null);
+        }, 2000);
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed.");
@@ -84,7 +121,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 p-1 hover:bg-slate-100 border border-slate-300 hover:border-slate-800 rounded-none transition-all cursor-pointer"
         >
           <X size={15} />
@@ -96,6 +133,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {mode === "signin" && "WELCOME BACK"}
             {mode === "signup" && "CREATE ACCOUNT"}
             {mode === "reset" && "RESET PASSWORD"}
+            {mode === "update-password" && "SET NEW PASSWORD"}
           </h2>
           <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest">
             {isConfigured ? "✨ SECURED BY SUPABASE" : "⚡ RUNNING IN LOCAL DEMO MODE"}
@@ -117,8 +155,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
         )}
 
-        {/* Social Authentication */}
-        {mode !== "reset" && (
+        {/* Social Authentication (Only for signin/signup) */}
+        {(mode === "signin" || mode === "signup") && (
           <div className="mb-5 flex flex-col gap-2">
             <button
               onClick={handleGoogleLogin}
@@ -154,7 +192,21 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </div>
         )}
 
-        {/* Email Form */}
+        {/* Reset Mode Helper Description */}
+        {mode === "reset" && (
+          <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
+            Enter the email address associated with your account, and we will send you a secure link to reset your password.
+          </p>
+        )}
+
+        {/* Update Password Mode Helper Description */}
+        {mode === "update-password" && (
+          <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
+            Please enter your new password below. It must be at least 6 characters long.
+          </p>
+        )}
+
+        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
           {mode === "signup" && (
             <div className="flex flex-col gap-1.5">
@@ -173,22 +225,26 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
           )}
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase">EMAIL ADDRESS</label>
-            <div className="relative">
-              <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="email"
-                required
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-slate-300 focus:border-slate-800 bg-white text-xs text-slate-800 focus:outline-none transition-colors"
-              />
+          {/* Email input (for signin, signup, reset) */}
+          {mode !== "update-password" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase">EMAIL ADDRESS</label>
+              <div className="relative">
+                <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border border-slate-300 focus:border-slate-800 bg-white text-xs text-slate-800 focus:outline-none transition-colors"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {mode !== "reset" && (
+          {/* Password input (for signin, signup) */}
+          {(mode === "signin" || mode === "signup") && (
             <div className="flex flex-col gap-1.5">
               <label className="text-[9px] font-bold text-slate-500 uppercase">PASSWORD</label>
               <div className="relative">
@@ -206,6 +262,43 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
           )}
 
+          {/* New password fields for update-password mode */}
+          {mode === "update-password" && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-slate-500 uppercase">NEW PASSWORD</label>
+                <div className="relative">
+                  <KeyRound size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min. 6 characters"
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 focus:border-slate-800 bg-white text-xs text-slate-800 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[9px] font-bold text-slate-500 uppercase">CONFIRM NEW PASSWORD</label>
+                <div className="relative">
+                  <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Repeat new password"
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 focus:border-slate-800 bg-white text-xs text-slate-800 focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Action button */}
           <button
             type="submit"
@@ -219,6 +312,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 {mode === "signin" && "Continue with Email"}
                 {mode === "signup" && "Sign Up"}
                 {mode === "reset" && "Send Reset Link"}
+                {mode === "update-password" && "Save New Password"}
               </span>
             )}
           </button>
@@ -270,16 +364,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </p>
           )}
 
-          {mode === "reset" && (
+          {(mode === "reset" || mode === "update-password") && (
             <button
               onClick={() => {
                 setMode("signin");
                 setError(null);
                 setSuccessMsg(null);
+                if (isPasswordRecovery) {
+                  setIsPasswordRecovery(false);
+                }
               }}
-              className="text-slate-700 font-bold hover:underline"
+              className="text-slate-700 font-bold hover:underline flex items-center gap-1"
             >
-              Back to Sign In
+              <ArrowLeft size={12} />
+              <span>Back to Sign In</span>
             </button>
           )}
         </div>

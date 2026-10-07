@@ -24,7 +24,7 @@ import AuthModal from "./AuthModal";
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, signOut, initialize } = useAuthStore();
+  const { user, profile, signOut, initialize, isPasswordRecovery } = useAuthStore();
   const { audioMuted, setAudioMuted, setStep } = usePhotoboothStore();
   
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -35,6 +35,13 @@ export default function Header() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Open modal if password recovery event was received
+  useEffect(() => {
+    if (isPasswordRecovery) {
+      setAuthModalOpen(true);
+    }
+  }, [isPasswordRecovery]);
 
   // Close dropdown on click outside
   useEffect(() => {

@@ -15,6 +15,7 @@ interface AuthState {
   loading: boolean;
   isInitialized: boolean;
   isConfigured: boolean;
+  isPasswordRecovery: boolean;
   
   // Actions
   initialize: () => void;
@@ -24,6 +25,9 @@ interface AuthState {
   signOut: () => Promise<void>;
   updateProfile: (displayName: string, avatarUrl: string) => Promise<void>;
   checkSession: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  setIsPasswordRecovery: (val: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -32,6 +36,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
   isInitialized: false,
   isConfigured: isSupabaseConfigured,
+  isPasswordRecovery: false,
 
   initialize: () => {
     if (get().isInitialized) return;
@@ -71,7 +76,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+      if (event === "PASSWORD_RECOVERY") {
+        set({ isPasswordRecovery: true });
+      }
+
       if (session) {
         const user = session.user;
         const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || "";
@@ -303,4 +312,67 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
     });
   },
+
+  resetPassword: async (email: string) => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      throw new Error("Masukkan alamat email yang valid.");
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      // Mock mode validation
+      const key = `posean_mock_reg_${trimmedEmail.toLowerCase()}`;
+      const regUser = localStorage.getItem(key);
+      if (!regUser) {
+        throw new Error("Akun dengan email tersebut tidak ditemukan di mode demo.");
+      }
+      return;
+    }
+
+    const redirectTo = typeof window !== "undefined"
+      ? `${window.location.origin}`
+      : undefined;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo,
+    });
+
+    if (error) {
+      throw error;
+    }
+  },
+
+  updatePassword: async (password: string) => {
+    if (!password || password.length < 6) {
+      throw new Error("Kata sandi baru minimal harus 6 karakter.");
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      const { user } = get();
+      if (!user) {
+        throw new Error("Sesi pengguna tidak ditemukan.");
+      }
+      const key = `posean_mock_reg_${user.email.toLowerCase()}`;
+      const regDetails = localStorage.getItem(key);
+      if (regDetails) {
+        const parsed = JSON.parse(regDetails);
+        parsed.password = password;
+        localStorage.setItem(key, JSON.stringify(parsed));
+      }
+      set({ isPasswordRecovery: false });
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    set({ isPasswordRecovery: false });
+  },
+
+  setIsPasswordRecovery: (isPasswordRecovery: boolean) => set({ isPasswordRecovery }),
 }));
