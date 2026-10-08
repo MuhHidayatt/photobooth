@@ -156,14 +156,16 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
         const scale = Math.min(scaleH, scaleW);
         setPreviewScale(Math.max(0.25, Math.min(1, scale)));
       } else {
-        const containerHeight = rightPanelRef.current.clientHeight || 700;
-        const containerWidth = rightPanelRef.current.clientWidth || 500;
-        const targetHeight = containerHeight - 32;
-        const targetWidth = containerWidth ? containerWidth - 32 : naturalWidth;
-        const scaleH = targetHeight / naturalHeight;
-        const scaleW = targetWidth / naturalWidth;
-        const scale = Math.min(1, scaleH, scaleW);
-        setPreviewScale(scale > 0.1 ? scale : 0.1);
+        const availableHeight = rightPanelRef.current.clientHeight
+          ? rightPanelRef.current.clientHeight - 48
+          : window.innerHeight - 240;
+        const availableWidth = rightPanelRef.current.clientWidth
+          ? rightPanelRef.current.clientWidth - 48
+          : naturalWidth;
+        const scaleH = availableHeight / naturalHeight;
+        const scaleW = availableWidth / naturalWidth;
+        const scale = Math.min(0.88, scaleH, scaleW);
+        setPreviewScale(Math.max(0.3, scale));
       }
     };
 
@@ -967,7 +969,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
       {/* Right Preview */}
       <div
         ref={rightPanelRef}
-        className="w-full lg:col-span-1 order-1 lg:order-2 flex flex-col items-center justify-center bg-slate-50 border border-slate-200 p-3 sm:p-4 lg:p-6 rounded-none relative lg:h-full lg:overflow-hidden"
+        className="w-full lg:col-span-1 order-1 lg:order-2 flex flex-col items-center justify-center bg-slate-50 border border-slate-200 p-3 sm:p-4 lg:p-6 rounded-none relative lg:h-full overflow-y-auto lg:overflow-hidden"
       >
         <div className="block lg:hidden text-center space-y-0.5 select-none mb-2">
           <span className="text-[8px] font-bold text-slate-400 tracking-[0.3em] uppercase font-mono">PREVIEW</span>
@@ -976,7 +978,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
 
         {/* Scaled wrapper box matching exact visual footprint */}
         <div
-          className="relative flex items-center justify-center select-none animate-in fade-in duration-200 overflow-visible"
+          className="relative select-none animate-in fade-in duration-200 my-auto flex-shrink-0"
           style={{
             width: `${(selectedLayout.type === "grid" ? 380 : 300) * previewScale}px`,
             height: `${
@@ -993,6 +995,9 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
         >
           <div
             style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
               width: selectedLayout.type === "grid" ? "380px" : "300px",
               height:
                 selectedLayout.type === "grid"
