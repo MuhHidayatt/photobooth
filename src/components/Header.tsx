@@ -17,7 +17,8 @@ import {
   Layers,
   Heart,
   Settings,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import AuthModal from "./AuthModal";
 
@@ -91,6 +92,17 @@ export default function Header() {
           {/* Right Navigation Controls */}
           <div className="flex items-center gap-3">
             
+            {/* Admin shortcut button (Only visible to verified admins) */}
+            {profile?.role === "admin" && (
+              <Link
+                href="/admin"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-2 border border-slate-800 bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
+              >
+                <ShieldCheck size={13} className="text-[#FFE66D]" />
+                <span>Admin</span>
+              </Link>
+            )}
+
             {/* Start Photobooth shortcut */}
             <button
               onClick={handleStartPhotobooth}
@@ -134,6 +146,17 @@ export default function Header() {
                       <p className="text-[9px] text-slate-400 truncate mt-0.5">{profile?.email}</p>
                     </div>
                     
+                    {profile?.role === "admin" && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50/70 hover:bg-purple-100 font-bold transition-colors border-b border-slate-100"
+                      >
+                        <ShieldCheck size={13} className="text-purple-600" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                    )}
+
                     <Link
                       href="/my-photobooths"
                       onClick={() => setDropdownOpen(false)}
@@ -205,6 +228,16 @@ export default function Header() {
             {user && (
               <div className="space-y-1 pt-2 border-t border-slate-200/60">
                 <p className="text-[10px] text-slate-400 font-bold px-2 py-1">MENU</p>
+                {profile?.role === "admin" && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-purple-700 bg-purple-50 font-bold rounded-none border border-purple-200"
+                  >
+                    <ShieldCheck size={14} className="text-purple-600" />
+                    <span>Admin Dashboard</span>
+                  </Link>
+                )}
                 <Link
                   href="/my-photobooths"
                   onClick={() => setMobileMenuOpen(false)}

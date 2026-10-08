@@ -6,6 +6,8 @@ export interface Profile {
   email: string;
   display_name: string;
   avatar_url: string;
+  role?: "user" | "admin";
+  is_pro?: boolean;
   created_at: string;
 }
 
@@ -24,6 +26,8 @@ interface AuthState {
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (displayName: string, avatarUrl: string) => Promise<void>;
+  setRole: (role: "user" | "admin") => Promise<void>;
+  setIsPro: (isPro: boolean) => Promise<void>;
   checkSession: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -194,6 +198,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         email: parsed.email,
         display_name: parsed.display_name,
         avatar_url: parsed.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${parsed.display_name}`,
+        role: (parsed.role as "user" | "admin") || (parsed.email.toLowerCase().includes("admin") ? "admin" : "user"),
+        is_pro: !!parsed.is_pro,
         created_at: parsed.created_at,
       };
 
@@ -218,12 +224,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error("Email already registered.");
       }
 
+      const role: "user" | "admin" = email.toLowerCase().includes("admin")
+        ? "admin"
+        : "user";
       const newMockUser = {
         id: `mock_user_${Date.now()}`,
         email,
         password,
         display_name: displayName,
         avatar_url: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${displayName}`,
+        role,
+        is_pro: false,
         created_at: new Date().toISOString(),
       };
 
@@ -235,9 +246,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         email: newMockUser.email,
         display_name: newMockUser.display_name,
         avatar_url: newMockUser.avatar_url,
+        role: newMockUser.role,
+        is_pro: false,
         created_at: newMockUser.created_at,
       };
-      
+
       localStorage.setItem("posean_mock_user", JSON.stringify(userSession));
       set({ user: userSession, profile: userSession });
       return;
@@ -311,6 +324,60 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         avatar_url: avatarUrl,
       },
     });
+  },
+
+  setRole: async (role: "user" | "admin") => {
+    const { user, profile } = get();
+    if (!user || !profile) return;
+
+    if (!isSupabaseConfigured) {
+      const updated: Profile = { ...profile, role };
+      localStorage.setItem("posean_mock_user", JSON.stringify(updated));
+      const key = `posean_mock_reg_${profile.email.toLowerCase()}`;
+      const regDetails = localStorage.getItem(key);
+      if (regDetails) {
+        const parsed = JSON.parse(regDetails);
+        parsed.role = role;
+        localStorage.setItem(key, JSON.stringify(parsed));
+      }
+      set({ profile: updated });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ role })
+      .eq("id", user.id);
+
+    if (error) throw error;
+    set({ profile: { ...profile, role } });
+  },
+
+  setIsPro: async (is_pro: boolean) => {
+    const { user, profile } = get();
+    if (!user || !profile) return;
+
+    if (!isSupabaseConfigured) {
+      const updated: Profile = { ...profile, is_pro };
+      localStorage.setItem("posean_mock_user", JSON.stringify(updated));
+      const key = `posean_mock_reg_${profile.email.toLowerCase()}`;
+      const regDetails = localStorage.getItem(key);
+      if (regDetails) {
+        const parsed = JSON.parse(regDetails);
+        parsed.is_pro = is_pro;
+        localStorage.setItem(key, JSON.stringify(parsed));
+      }
+      set({ profile: updated });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_pro })
+      .eq("id", user.id);
+
+    if (error) throw error;
+    set({ profile: { ...profile, is_pro } });
   },
 
   resetPassword: async (email: string) => {

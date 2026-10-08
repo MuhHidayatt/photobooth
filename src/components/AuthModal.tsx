@@ -60,7 +60,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       await signInWithGoogle();
       handleClose();
     } catch (err: any) {
-      setError(err.message || "Google Login failed");
+      const msg = err.message || "";
+      if (
+        msg.includes("Unsupported provider") ||
+        msg.includes("provider is not enabled") ||
+        msg.includes("validation_failed")
+      ) {
+        setError(
+          "Login Google belum diaktifkan di dashboard Supabase. Silakan gunakan form Email & Password di bawah, atau aktifkan Google Provider di Supabase."
+        );
+      } else {
+        setError(msg || "Google Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -323,7 +334,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {mode === "signin" && (
             <>
               <p>
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <button
                   onClick={() => {
                     setMode("signup");

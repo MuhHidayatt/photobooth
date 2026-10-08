@@ -149,7 +149,7 @@ export default function GalleryGrid({
                 </div>
                 {item.caption && (
                   <p className="text-[10px] text-slate-700 font-bold italic line-clamp-1 border-l-2 border-[#FFE66D] pl-1.5 mt-1">
-                    "{item.caption}"
+                    &quot;{item.caption}&quot;
                   </p>
                 )}
               </div>

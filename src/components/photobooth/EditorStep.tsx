@@ -15,6 +15,7 @@ import {
   X,
   Layers,
   Sliders,
+  Crown,
 } from "lucide-react";
 import { STICKERS } from "@/components/StickerAssets";
 import {
@@ -23,6 +24,7 @@ import {
   FILTERS,
   ActiveSticker,
 } from "@/store/usePhotoboothStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { generateRandomDoodles, getFilteredPhotoFrames } from "@/utils/photoboothHelpers";
 
 interface EditorStepProps {
@@ -30,6 +32,9 @@ interface EditorStepProps {
 }
 
 export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
+  const { profile, setIsPro } = useAuthStore();
+  const isUserPro = profile?.is_pro || profile?.role === "admin";
+
   const {
     setStep,
     selectedLayout,
@@ -44,6 +49,8 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setSelectedTheme,
     caption,
     setCaption,
+    showWatermark,
+    setShowWatermark,
     stickers,
     setStickers,
     addSticker,
@@ -63,6 +70,50 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
 
   const [editorTab, setEditorTab] = useState<"theme" | "filter" | "sticker" | "caption">("theme");
   const [previewScale, setPreviewScale] = useState(1);
+  const [proModalOpen, setProModalOpen] = useState(false);
+  const [brandSettings, setBrandSettings] = useState<{
+    brandTitle: string;
+    brandSubtitle: string;
+    enableWatermark: boolean;
+  }>({
+    brandTitle: "POSEAN",
+    brandSubtitle: "GOOD MOMENTS",
+    enableWatermark: true,
+  });
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("posean_brand_settings");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setBrandSettings({
+          brandTitle: parsed.brandTitle || "POSEAN",
+          brandSubtitle: parsed.brandSubtitle || "GOOD MOMENTS",
+          enableWatermark: parsed.enableWatermark ?? true,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleToggleWatermark = (nextVal: boolean) => {
+    if (!nextVal && !isUserPro) {
+      setProModalOpen(true);
+      return;
+    }
+    setShowWatermark(nextVal);
+  };
+
+  const handleUnlockProDemo = async () => {
+    try {
+      await setIsPro(true);
+    } catch (err) {
+      console.error("Error setting pro status:", err);
+    }
+    setShowWatermark(false);
+    setProModalOpen(false);
+  };
 
   const editorStripRef = useRef<HTMLDivElement>(null);
   const dragContainerRef = useRef<HTMLDivElement>(null);
@@ -676,29 +727,82 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
               </div>
             )}
 
-            {/* CAPTION TAB */}
+            {/* CAPTION & WATERMARK TAB */}
             {editorTab === "caption" && (
-              <div className="flex flex-col gap-2">
-                <label
-                  htmlFor="cap-inp"
-                  className="text-[8px] lg:text-[10px] font-mono font-bold text-slate-400 uppercase select-none"
-                >
-                  FOOTER MESSAGE
-                </label>
-                <input
-                  id="cap-inp"
-                  type="text"
-                  maxLength={30}
-                  placeholder="e.g. BEST MOMENTS 2026"
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  className="w-full py-2 px-3 border border-slate-300 bg-white rounded-none font-mono text-[11px] lg:text-xs text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
-                />
-                <div className="flex justify-between items-center text-[8px] font-mono text-slate-400">
-                  <span>Max 30 characters</span>
-                  <span className={`font-bold ${caption.length === 30 ? "text-amber-600" : "text-slate-400"}`}>
-                    {caption.length}/30
-                  </span>
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="cap-inp"
+                    className="text-[8px] lg:text-[10px] font-mono font-bold text-slate-400 uppercase select-none"
+                  >
+                    FOOTER MESSAGE / CAPTION
+                  </label>
+                  <input
+                    id="cap-inp"
+                    type="text"
+                    maxLength={30}
+                    placeholder="e.g. BEST MOMENTS 2026"
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    className="w-full py-2 px-3 border border-slate-300 bg-white rounded-none font-mono text-[11px] lg:text-xs text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                  />
+                  <div className="flex justify-between items-center text-[8px] font-mono text-slate-400">
+                    <span>Max 30 characters</span>
+                    <span className={`font-bold ${caption.length === 30 ? "text-amber-600" : "text-slate-400"}`}>
+                      {caption.length}/30
+                    </span>
+                  </div>
+                </div>
+
+                {/* WATERMARK BRANDING CONTROLS */}
+                <div className="border-t border-slate-200 pt-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-mono text-[8px] lg:text-[10px] font-bold text-slate-700 uppercase">
+                      <Sparkles size={12} className="text-amber-500" />
+                      <span>Watermark Brand Logo</span>
+                    </div>
+                    {isUserPro ? (
+                      <span className="text-[7.5px] font-mono font-black uppercase px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300">
+                        ★ PRO UNLOCKED
+                      </span>
+                    ) : (
+                      <span className="text-[7.5px] font-mono font-bold uppercase px-1.5 py-0.5 bg-slate-100 text-slate-500 border border-slate-300">
+                        FREE TIER
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[8.5px] font-mono text-slate-400 leading-tight">
+                    Cetak label identitas brand "{brandSettings.brandTitle}" di bagian bawah strip foto.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleWatermark(true)}
+                      className={`py-2 px-2.5 font-mono text-[9px] font-bold uppercase border transition-all cursor-pointer text-center ${
+                        showWatermark
+                          ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                      }`}
+                    >
+                      ✓ Pasang Brand
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleWatermark(false)}
+                      className={`py-2 px-2.5 font-mono text-[9px] font-bold uppercase border transition-all cursor-pointer text-center relative ${
+                        !showWatermark
+                          ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black border-amber-600 shadow-sm"
+                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span>Hapus Brand</span>
+                      {!isUserPro && (
+                        <span className="ml-1 text-[7px] text-amber-600 font-black">★ PRO</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -815,12 +919,14 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
               className="flex flex-col items-center justify-center gap-1.5 pt-4 pb-2 mt-auto min-h-[85px] relative z-10 select-none"
               style={{ boxSizing: "border-box" }}
             >
-              <span
-                className="text-[10px] font-mono tracking-[0.25em] font-extrabold uppercase leading-none text-center"
-                style={{ color: selectedTheme.text }}
-              >
-                ✨ GOOD MOMENTS
-              </span>
+              {showWatermark && (
+                <span
+                  className="text-[10px] font-mono tracking-[0.25em] font-extrabold uppercase leading-none text-center"
+                  style={{ color: selectedTheme.text }}
+                >
+                  ⚡ {brandSettings.brandTitle} • {brandSettings.brandSubtitle}
+                </span>
+              )}
               {caption.trim() !== "" && (
                 <p
                   className="text-[9px] font-mono tracking-wider opacity-85 uppercase leading-none max-w-[200px] break-words text-center"
@@ -840,6 +946,75 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           </div>
         </div>
       </div>
+
+      {/* PRO WATERMARK DEMO MODAL */}
+      {proModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-900 p-6 max-w-sm w-full shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-[#FFE66D] border border-slate-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                  <Crown size={18} className="text-slate-900" />
+                </div>
+                <div>
+                  <h3 className="font-mono font-bold text-xs uppercase tracking-tight text-slate-900">
+                    Fitur Eksklusif PRO
+                  </h3>
+                  <span className="text-[9px] font-mono text-amber-600 font-bold">
+                    ★ Posean Creator Club
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setProModalOpen(false)}
+                className="p-1 hover:bg-slate-100 border border-transparent hover:border-slate-300 font-mono text-xs cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-left font-mono">
+              <p className="text-[11px] text-slate-800 leading-relaxed font-bold">
+                Hapus Watermark Brand Posean
+              </p>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Dapatkan hasil cetak foto strip yang bersih tanpa logo brand Posean, pas untuk kebutuhan profesional, portofolio, atau souvenir event pribadi!
+              </p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-300 p-3 font-mono text-[9px] text-amber-900 space-y-1">
+              <div className="flex items-center gap-1 font-bold">
+                <CheckCircle size={12} className="text-amber-700" />
+                <span>Hasil Ekspor 100% Bersih & Minimalis</span>
+              </div>
+              <div className="flex items-center gap-1 font-bold">
+                <CheckCircle size={12} className="text-amber-700" />
+                <span>Bebas Kustomisasi Caption & Timestamp</span>
+              </div>
+              <div className="flex items-center gap-1 font-bold">
+                <CheckCircle size={12} className="text-amber-700" />
+                <span>Akses Seluruh Koleksi Frame & Stiker PRO</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1 font-mono">
+              <button
+                onClick={handleUnlockProDemo}
+                className="w-full py-2.5 px-4 bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider border border-slate-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-800 active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Sparkles size={12} className="text-[#FFE66D]" />
+                <span>Buka Demo PRO 1-Klik</span>
+              </button>
+              <button
+                onClick={() => setProModalOpen(false)}
+                className="w-full py-2 text-slate-500 hover:text-slate-800 text-[10px] uppercase cursor-pointer text-center"
+              >
+                Tetap Pakai Watermark Free
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -9,6 +9,9 @@ export interface LayoutOption {
   previewClass: string;
   type: "strip" | "grid";
   badge?: string;
+  is_pro?: boolean;
+  bg_color?: string;
+  text_color?: string;
 }
 
 export interface ActiveSticker {
@@ -249,6 +252,14 @@ interface PhotoboothState {
   setIsGeneratingVideo: (val: boolean) => void;
   gifInterval: number; // seconds per frame. e.g., 0.1 for 10fps
 
+  // Branding & Watermark
+  showWatermark: boolean;
+  setShowWatermark: (val: boolean) => void;
+
+  // Cloud & Share Storage
+  cloudImageUrl: string | null;
+  setCloudImageUrl: (url: string | null) => void;
+
   // Global settings
   audioMuted: boolean;
   setAudioMuted: (val: boolean) => void;
@@ -385,13 +396,21 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
   setIsGeneratingVideo: (isGeneratingVideo) => set({ isGeneratingVideo }),
   gifInterval: 0.1, // 10 FPS
 
+  // Branding & Watermark
+  showWatermark: true,
+  setShowWatermark: (showWatermark) => set({ showWatermark }),
+
+  // Cloud & Share Storage
+  cloudImageUrl: null,
+  setCloudImageUrl: (cloudImageUrl) => set({ cloudImageUrl }),
+
   // Global settings
   audioMuted: false,
   setAudioMuted: (audioMuted) => set({ audioMuted }),
 
   // Reset helper
   resetStore: () =>
-    set((state) => ({
+    set(() => ({
       step: "landing",
       capturedPhotos: [],
       singleRetakeIndex: null,
@@ -401,6 +420,8 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
       stickers: [],
       selectedStickerId: null,
       caption: "",
+      showWatermark: true,
+      cloudImageUrl: null,
       exportJpgUrl: null,
       exportGifUrl: null,
       exportVideoUrl: null,

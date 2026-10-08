@@ -13,7 +13,7 @@ export default function Footer() {
         style={{ fontSize: "11px", letterSpacing: "1px", opacity: 0.75 }}
       >
         <span>Posean © 2026</span>
-        <span>Developed by Hidayat06</span>
+        <span>Developed By Hidayat</span>
       </div>
     </footer>
   );

@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Posean — Photobooth Online",
-  description: "Pose Dulu, Cerita Nanti. Strip photobooth retro-modern bertema playful dan minimal.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://posean.vercel.app"),
+  title: "Posean — Photobooth Online Retro-Modern",
+  description: "Pose Dulu, Cerita Nanti. Strip photobooth retro-modern bertema playful, minimal, dan estetik langsung dari browser Anda.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -25,6 +26,27 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/logo.png",
+  },
+  openGraph: {
+    title: "Posean — Photobooth Online Retro-Modern",
+    description: "Ambil foto strip retro, animasi loop GIF, dan bagikan momen seru bersama teman langsung dari browser.",
+    siteName: "Posean Photobooth",
+    images: [
+      {
+        url: "/logo.png",
+        width: 512,
+        height: 512,
+        alt: "Posean Photobooth",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Posean — Photobooth Online Retro-Modern",
+    description: "Pose Dulu, Cerita Nanti. Strip photobooth retro-modern bertema playful dan minimal.",
+    images: ["/logo.png"],
   },
 };
 

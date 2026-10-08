@@ -14,10 +14,17 @@ import {
   Film,
   FileImage,
   Sparkles,
+  QrCode,
+  Copy,
+  Check,
+  ExternalLink,
 } from "lucide-react";
+import QRCode from "qrcode";
 import { usePhotoboothStore } from "@/store/usePhotoboothStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { compileStoryVideoMp4 } from "@/utils/videoExporter";
 import { getFilteredPhotoFrames } from "@/utils/photoboothHelpers";
+import { uploadBase64ToStorage } from "@/utils/supabaseHelpers";
 
 export default function ExportStep() {
   const {
@@ -27,6 +34,8 @@ export default function ExportStep() {
     selectedTheme,
     caption,
     exportJpgUrl,
+    cloudImageUrl,
+    setCloudImageUrl,
     exportGifUrl,
     setExportGifUrl,
     exportVideoUrl,
@@ -44,6 +53,11 @@ export default function ExportStep() {
   const [exportFormat, setExportFormat] = useState<"jpg" | "gif" | "mp4">("jpg");
   const [gifSpeed, setGifSpeed] = useState<"slow" | "normal" | "fast">("normal");
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [showQrModal, setShowQrModal] = useState<boolean>(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [qrTargetUrl, setQrTargetUrl] = useState<string>("");
+  const [isGeneratingQr, setIsGeneratingQr] = useState<boolean>(false);
+  const [qrCopied, setQrCopied] = useState<boolean>(false);
 
   const speedMap = {
     slow: 0.15,
@@ -200,6 +214,64 @@ export default function ExportStep() {
       }
     } else {
       setShowShareModal(true);
+    }
+  };
+
+  // Open QR modal and generate QR Code for mobile scanning
+  const handleOpenQrModal = async () => {
+    setShowQrModal(true);
+    setIsGeneratingQr(true);
+    setQrCopied(false);
+
+    try {
+      let directImageUrl = cloudImageUrl || (exportJpgUrl?.startsWith("http") ? exportJpgUrl : "");
+
+      // If user is authenticated and directImageUrl is not yet available, try quick upload to storage
+      if (!directImageUrl && exportJpgUrl) {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser) {
+          try {
+            const uploaded = await uploadBase64ToStorage(currentUser.id, exportJpgUrl, "jpg");
+            if (uploaded && uploaded.startsWith("http")) {
+              directImageUrl = uploaded;
+              setCloudImageUrl(uploaded);
+            }
+          } catch (e) {
+            console.warn("Auto storage upload for QR failed:", e);
+          }
+        }
+      }
+
+      // If we have a direct image URL (from Supabase Storage)
+      let fullScanUrl = window.location.origin;
+      if (directImageUrl && directImageUrl.startsWith("http")) {
+        fullScanUrl = `${window.location.origin}/download?url=${encodeURIComponent(directImageUrl)}`;
+      } else {
+        fullScanUrl = `${window.location.origin}/`;
+      }
+
+      setQrTargetUrl(fullScanUrl);
+      const qrData = await QRCode.toDataURL(fullScanUrl, {
+        width: 320,
+        margin: 2,
+        color: {
+          dark: "#0F172A",
+          light: "#FFFFFF",
+        },
+      });
+      setQrDataUrl(qrData);
+    } catch (err) {
+      console.error("QR Code generation failed:", err);
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  const handleCopyQrLink = () => {
+    if (qrTargetUrl) {
+      navigator.clipboard.writeText(qrTargetUrl);
+      setQrCopied(true);
+      setTimeout(() => setQrCopied(false), 2500);
     }
   };
 
@@ -382,6 +454,17 @@ export default function ExportStep() {
               <Share2 size={13} /> Share {exportFormat.toUpperCase()}
             </button>
 
+            <button
+              onClick={handleOpenQrModal}
+              className="w-full py-3 border border-slate-800 bg-[#4ECDC4] text-slate-950 font-mono text-[10px] font-black uppercase rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-1.5 hover:scale-[1.01] transition-transform cursor-pointer"
+            >
+              <QrCode size={13} />
+              <span>Scan QR ke HP</span>
+              <span className="text-[7.5px] bg-slate-900 text-white px-1.5 py-0.2 font-mono">
+                INSTANT
+              </span>
+            </button>
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep("editor")}
@@ -543,6 +626,99 @@ export default function ExportStep() {
               >
                 Instagram Story
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal for Mobile Scanning */}
+      {showQrModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white border-2 border-slate-900 rounded-none p-5 sm:p-6 flex flex-col items-center gap-4 text-center relative shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-3 right-3 text-xs font-black font-mono text-slate-800 hover:bg-slate-100 p-1 cursor-pointer"
+            >
+              ✕
+            </button>
+
+            {/* Header Badge */}
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-none bg-[#4ECDC4] border border-slate-900 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <QrCode size={18} className="text-slate-900" />
+              </div>
+              <div className="text-left font-mono">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-tight">
+                  Scan QR ke Smartphone
+                </h3>
+                <span className="text-[9px] text-teal-700 font-bold">
+                  ⚡ Unduh Langsung di HP Kamu
+                </span>
+              </div>
+            </div>
+
+            {/* QR Code Display Container */}
+            <div className="p-3 bg-white border-2 border-slate-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center min-w-[210px] min-h-[210px]">
+              {isGeneratingQr ? (
+                <div className="flex flex-col items-center gap-2 text-slate-500 font-mono text-[10px]">
+                  <RefreshCw size={24} className="animate-spin text-slate-800" />
+                  <span>Membuat Kode QR...</span>
+                </div>
+              ) : qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="QR Code Photobooth"
+                  className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
+                />
+              ) : (
+                <div className="text-red-500 text-[10px] font-mono">
+                  Gagal memuat QR Code.
+                </div>
+              )}
+            </div>
+
+            {/* Instructions */}
+            <div className="space-y-1 font-mono text-left w-full bg-slate-50 border border-slate-200 p-2.5">
+              <p className="text-[10px] font-bold text-slate-800">
+                Cara Mengunduh ke Ponsel:
+              </p>
+              <ol className="text-[8.5px] text-slate-600 list-decimal list-inside space-y-0.5">
+                <li>Buka aplikasi <strong>Kamera</strong> di HP (iPhone / Android)</li>
+                <li>Arahkan kamera ke kode QR di atas</li>
+                <li>Ketuk notifikasi / link yang muncul untuk simpan foto!</li>
+              </ol>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="w-full flex flex-col gap-2 font-mono">
+              <button
+                onClick={handleCopyQrLink}
+                className="w-full py-2.5 px-3 bg-white border border-slate-900 text-slate-900 font-bold text-[10px] uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-50 active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {qrCopied ? (
+                  <>
+                    <Check size={12} className="text-emerald-600" />
+                    <span>Link Download Tersalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} />
+                    <span>Salin Link Download</span>
+                  </>
+                )}
+              </button>
+
+              {qrTargetUrl && (
+                <a
+                  href={qrTargetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-1.5 text-slate-600 hover:text-slate-900 text-[9px] uppercase tracking-wider flex items-center justify-center gap-1"
+                >
+                  <ExternalLink size={11} />
+                  <span>Buka di Tab Baru</span>
+                </a>
+              )}
             </div>
           </div>
         </div>

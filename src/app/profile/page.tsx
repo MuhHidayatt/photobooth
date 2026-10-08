@@ -157,9 +157,18 @@ export default function ProfilePage() {
               />
             </div>
             <h3 className="font-bold text-sm uppercase tracking-wide text-slate-800 truncate w-full">{displayName}</h3>
-            <p className="text-[9px] text-slate-450 truncate w-full mt-0.5">{profile.email}</p>
+            <p className="text-[9px] text-slate-400 truncate w-full mt-0.5">{profile.email}</p>
             
-            <div className="flex items-center gap-1 text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-4">
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <span className={`px-2 py-0.5 text-[9px] font-bold border uppercase ${profile.role === "admin" ? "bg-purple-100 text-purple-700 border-purple-300" : "bg-slate-100 text-slate-700 border-slate-300"}`}>
+                {profile.role === "admin" ? "🛡 ADMIN" : "USER"}
+              </span>
+              <span className={`px-2 py-0.5 text-[9px] font-bold border uppercase ${profile.is_pro ? "bg-amber-100 text-amber-800 border-amber-300" : "bg-slate-100 text-slate-500 border-slate-300"}`}>
+                {profile.is_pro ? "★ PRO" : "FREE"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-3">
               <Calendar size={10} />
               <span>Joined {joinDate}</span>
             </div>

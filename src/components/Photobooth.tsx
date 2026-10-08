@@ -25,9 +25,9 @@ export default function Photobooth() {
     isGeneratingJpg,
     isGeneratingGif,
     isGeneratingVideo,
+    setCloudImageUrl,
   } = usePhotoboothStore();
 
-  const { user } = useAuthStore();
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [pendingJpg, setPendingJpg] = useState<string | null>(null);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export default function Photobooth() {
     if (currentUser) {
       setIsSaving(true);
       try {
-        await savePhotobooth(
+        const saved = await savePhotobooth(
           currentUser.id,
           selectedTheme.id,
           caption,
@@ -46,6 +46,9 @@ export default function Photobooth() {
           jpgUrlVal,
           gifUrlVal
         );
+        if (saved?.jpg_url) {
+          setCloudImageUrl(saved.jpg_url);
+        }
       } catch (err) {
         console.error("Auto save failed:", err);
       } finally {
@@ -69,7 +72,7 @@ export default function Photobooth() {
     if (currentUser && pendingJpg) {
       setIsSaving(true);
       try {
-        await savePhotobooth(
+        const saved = await savePhotobooth(
           currentUser.id,
           selectedTheme.id,
           caption,
@@ -77,6 +80,9 @@ export default function Photobooth() {
           pendingJpg,
           pendingGif
         );
+        if (saved?.jpg_url) {
+          setCloudImageUrl(saved.jpg_url);
+        }
       } catch (err) {
         console.error("Failed to save photobooth after login:", err);
       } finally {
