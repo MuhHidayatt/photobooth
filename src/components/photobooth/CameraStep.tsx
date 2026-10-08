@@ -226,65 +226,80 @@ export default function CameraStep() {
                 SMILE! 📸
               </div>
             )}
+            {/* Quick camera flip button right on viewfinder for mobile */}
+            <button
+              onClick={() => {
+                const nextMode = facingMode === "user" ? "environment" : "user";
+                setFacingMode(nextMode);
+                if (typeof window !== "undefined") {
+                  sessionStorage.setItem("photobooth_facingMode", nextMode);
+                }
+              }}
+              className="absolute top-3 right-3 z-30 p-2 sm:px-2.5 sm:py-1.5 bg-black/60 hover:bg-black/80 text-white border border-white/40 shadow-sm transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 font-mono text-[10px]"
+              title="Ganti kamera depan/belakang"
+            >
+              <RotateCw size={14} />
+              <span className="hidden sm:inline">{facingMode === "user" ? "Kamera Belakang" : "Kamera Depan"}</span>
+            </button>
           </>
         )}
       </div>
 
       <div className="w-full lg:col-span-5 flex flex-col gap-4 items-center lg:items-stretch">
         {!isCapturing && (
-          <div className="flex items-center justify-between w-full bg-white border border-slate-800 px-3 py-2.5 rounded-none font-mono text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-20 select-none">
-            <span className="font-bold text-slate-600">COUNTDOWN:</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCountdownTime(3)}
-                className={`px-2 py-0.5 rounded-none font-bold transition-all cursor-pointer ${
-                  countdownTime === 3 ? "bg-slate-800 text-white" : "text-slate-400"
-                }`}
-              >
-                3s
-              </button>
-              <button
-                onClick={() => setCountdownTime(5)}
-                className={`px-2 py-0.5 rounded-none font-bold transition-all cursor-pointer ${
-                  countdownTime === 5 ? "bg-slate-800 text-white" : "text-slate-400"
-                }`}
-              >
-                5s
-              </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 w-full">
+            <div className="flex items-center justify-between w-full bg-white border border-slate-800 px-3 py-2.5 rounded-none font-mono text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-20 select-none">
+              <span className="font-bold text-slate-600">COUNTDOWN:</span>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setCountdownTime(3)}
+                  className={`px-3 py-1 rounded-none font-bold transition-all cursor-pointer ${
+                    countdownTime === 3 ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  3 detik
+                </button>
+                <button
+                  onClick={() => setCountdownTime(5)}
+                  className={`px-3 py-1 rounded-none font-bold transition-all cursor-pointer ${
+                    countdownTime === 5 ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  5 detik
+                </button>
+              </div>
             </div>
-          </div>
-        )}
 
-        {!isCapturing && (
-          <div className="flex items-center justify-between w-full bg-white border border-slate-800 px-3 py-2.5 rounded-none font-mono text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-20 select-none">
-            <span className="font-bold text-slate-600">CAMERA:</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setFacingMode("user");
-                  if (typeof window !== "undefined") {
-                    sessionStorage.setItem("photobooth_facingMode", "user");
-                  }
-                }}
-                className={`px-2 py-0.5 rounded-none font-bold transition-all cursor-pointer ${
-                  facingMode === "user" ? "bg-slate-800 text-white" : "text-slate-400"
-                }`}
-              >
-                Front Camera
-              </button>
-              <button
-                onClick={() => {
-                  setFacingMode("environment");
-                  if (typeof window !== "undefined") {
-                    sessionStorage.setItem("photobooth_facingMode", "environment");
-                  }
-                }}
-                className={`px-2 py-0.5 rounded-none font-bold transition-all cursor-pointer ${
-                  facingMode === "environment" ? "bg-slate-800 text-white" : "text-slate-400"
-                }`}
-              >
-                Back Camera
-              </button>
+            <div className="flex items-center justify-between w-full bg-white border border-slate-800 px-3 py-2.5 rounded-none font-mono text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-20 select-none">
+              <span className="font-bold text-slate-600">KAMERA:</span>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => {
+                    setFacingMode("user");
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("photobooth_facingMode", "user");
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-none font-bold transition-all cursor-pointer ${
+                    facingMode === "user" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Depan
+                </button>
+                <button
+                  onClick={() => {
+                    setFacingMode("environment");
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("photobooth_facingMode", "environment");
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-none font-bold transition-all cursor-pointer ${
+                    facingMode === "environment" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Belakang
+                </button>
+              </div>
             </div>
           </div>
         )}

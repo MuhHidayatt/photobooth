@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { audio } from "@/utils/audio";
 
 export type Step = "landing" | "layout" | "camera" | "editor" | "export";
 
@@ -237,6 +238,11 @@ interface PhotoboothState {
   stickerColor: string;
   setStickerColor: (color: string) => void;
 
+  // Custom Frame Image (Canva / Photoshop overlay or background)
+  frameImageUrl: string | null;
+  frameMode: "overlay" | "background";
+  setFrameImage: (url: string | null, mode?: "overlay" | "background") => void;
+
   // Exported Caches
   exportJpgUrl: string | null;
   setExportJpgUrl: (url: string | null) => void;
@@ -263,12 +269,18 @@ interface PhotoboothState {
   // Global settings
   audioMuted: boolean;
   setAudioMuted: (val: boolean) => void;
+  isMusicPlaying: boolean;
+  musicTrack: string;
+  musicVolume: number;
+  toggleMusic: (trackId?: string) => void;
+  setMusicTrack: (track: string) => void;
+  setMusicVolume: (volume: number) => void;
 
   // Reset helper
   resetStore: () => void;
 }
 
-export const usePhotoboothStore = create<PhotoboothState>((set) => ({
+export const usePhotoboothStore = create<PhotoboothState>((set, get) => ({
   // Navigation
   step: "landing",
   setStep: (step) => set({ step }),
@@ -381,6 +393,11 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
   stickerColor: "#3E3730",
   setStickerColor: (stickerColor) => set({ stickerColor }),
 
+  // Custom Frame Image
+  frameImageUrl: null,
+  frameMode: "overlay",
+  setFrameImage: (frameImageUrl, frameMode = "overlay") => set({ frameImageUrl, frameMode }),
+
   // Exported Caches
   exportJpgUrl: null,
   setExportJpgUrl: (exportJpgUrl) => set({ exportJpgUrl }),
@@ -406,7 +423,40 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
 
   // Global settings
   audioMuted: false,
-  setAudioMuted: (audioMuted) => set({ audioMuted }),
+  setAudioMuted: (audioMuted) => {
+    set({ audioMuted });
+    audio.setMuted(audioMuted);
+    if (audioMuted) {
+      audio.stopBgm();
+      set({ isMusicPlaying: false });
+    }
+  },
+  isMusicPlaying: false,
+  musicTrack: "cute-lofi",
+  musicVolume: 0.35,
+  toggleMusic: (trackId) => {
+    const state = get();
+    const nextTrack = trackId || state.musicTrack;
+    if (state.isMusicPlaying && (!trackId || trackId === state.musicTrack)) {
+      audio.stopBgm();
+      set({ isMusicPlaying: false });
+    } else {
+      audio.setMuted(false);
+      audio.setBgmVolume(state.musicVolume);
+      audio.startBgm(nextTrack);
+      set({ isMusicPlaying: true, audioMuted: false, musicTrack: nextTrack });
+    }
+  },
+  setMusicTrack: (track) => {
+    set({ musicTrack: track });
+    if (get().isMusicPlaying) {
+      audio.startBgm(track);
+    }
+  },
+  setMusicVolume: (volume) => {
+    set({ musicVolume: volume });
+    audio.setBgmVolume(volume);
+  },
 
   // Reset helper
   resetStore: () =>
@@ -420,6 +470,8 @@ export const usePhotoboothStore = create<PhotoboothState>((set) => ({
       stickers: [],
       selectedStickerId: null,
       caption: "",
+      frameImageUrl: null,
+      frameMode: "overlay",
       showWatermark: true,
       cloudImageUrl: null,
       exportJpgUrl: null,

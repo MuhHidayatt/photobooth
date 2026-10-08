@@ -189,3 +189,56 @@ create policy "Users and Admins can delete storage objects"
 --   to anon
 --   with check (bucket_id = 'photobooths');
 
+-- 7. Create Community Frame Templates Table
+create table if not exists public.frame_templates (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users on delete cascade,
+  creator_name text not null default 'Anonymous',
+  creator_avatar text,
+  name text not null,
+  description text,
+  type text default 'strip' not null check (type in ('strip', 'grid')),
+  frames integer default 4 not null,
+  aspect_ratio text default '4/3' not null,
+  bg_color text default '#FFFFFF' not null,
+  text_color text default '#1E293B' not null,
+  caption text,
+  default_filter text default 'none',
+  stickers jsonb default '[]'::jsonb,
+  image_url text,
+  frame_mode text default 'overlay',
+  is_public boolean default true not null,
+  uses_count integer default 0 not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Migration columns if table already existed
+alter table public.frame_templates add column if not exists image_url text;
+alter table public.frame_templates add column if not exists frame_mode text default 'overlay';
+
+alter table public.frame_templates enable row level security;
+
+-- Public can view all public templates
+drop policy if exists "Public read frame templates" on public.frame_templates;
+create policy "Public read frame templates"
+  on public.frame_templates for select
+  using (is_public = true or auth.uid() = user_id or public.is_admin());
+
+-- Authenticated users can create templates
+drop policy if exists "Authenticated insert frame templates" on public.frame_templates;
+create policy "Authenticated insert frame templates"
+  on public.frame_templates for insert
+  with check (auth.uid() = user_id or user_id is null or public.is_admin());
+
+-- Users can update their own templates or increment uses_count
+drop policy if exists "Users update own frame templates" on public.frame_templates;
+create policy "Users update own frame templates"
+  on public.frame_templates for update
+  using (auth.uid() = user_id or public.is_admin() or true);
+
+-- Users can delete their own templates, and admins can delete any
+drop policy if exists "Users delete own frame templates" on public.frame_templates;
+create policy "Users delete own frame templates"
+  on public.frame_templates for delete
+  using (auth.uid() = user_id or public.is_admin());
+

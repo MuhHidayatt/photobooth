@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toJpeg } from "html-to-image";
 import gifshot from "gifshot";
+import Link from "next/link";
 import {
   Sparkles,
   Smile as SmileIcon,
@@ -16,6 +18,7 @@ import {
   Layers,
   Sliders,
   Crown,
+  Upload,
 } from "lucide-react";
 import { STICKERS } from "@/components/StickerAssets";
 import {
@@ -26,13 +29,15 @@ import {
 } from "@/store/usePhotoboothStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { generateRandomDoodles, getFilteredPhotoFrames } from "@/utils/photoboothHelpers";
+import CreateTemplateModal from "@/components/templates/CreateTemplateModal";
 
 interface EditorStepProps {
   onExportsCompleted: (jpgUrl: string, gifUrl: string | null) => void;
 }
 
 export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
-  const { profile, setIsPro } = useAuthStore();
+  const router = useRouter();
+  const { user, profile, setIsPro } = useAuthStore();
   const isUserPro = profile?.is_pro || profile?.role === "admin";
 
   const {
@@ -49,6 +54,9 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setSelectedTheme,
     caption,
     setCaption,
+    frameImageUrl,
+    frameMode,
+    setFrameImage,
     showWatermark,
     setShowWatermark,
     stickers,
@@ -71,6 +79,8 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
   const [editorTab, setEditorTab] = useState<"theme" | "filter" | "sticker" | "caption">("theme");
   const [previewScale, setPreviewScale] = useState(1);
   const [proModalOpen, setProModalOpen] = useState(false);
+  const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
+  const [templateSuccessToast, setTemplateSuccessToast] = useState<string | null>(null);
   const [brandSettings, setBrandSettings] = useState<{
     brandTitle: string;
     brandSubtitle: string;
@@ -124,9 +134,6 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
   useEffect(() => {
     const handleResize = () => {
       if (!rightPanelRef.current) return;
-      const containerHeight = rightPanelRef.current.clientHeight;
-      const containerWidth = rightPanelRef.current.clientWidth;
-      if (!containerHeight) return;
 
       const isGrid = selectedLayout.type === "grid";
       const naturalHeight = isGrid
@@ -138,12 +145,26 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
             : 545;
       const naturalWidth = isGrid ? 380 : 300;
 
-      const targetHeight = containerHeight - 32;
-      const targetWidth = containerWidth ? containerWidth - 32 : naturalWidth;
-      const scaleH = targetHeight / naturalHeight;
-      const scaleW = targetWidth / naturalWidth;
-      const scale = Math.min(1, scaleH, scaleW);
-      setPreviewScale(scale > 0.1 ? scale : 0.1);
+      const isMobile = window.innerWidth < 1024;
+      if (isMobile) {
+        // On mobile, scale so the strip height doesn't exceed 42vh or 380px,
+        // and fits comfortably within phone width with zero dead whitespace
+        const maxMobileHeight = Math.min(window.innerHeight * 0.42, 380);
+        const maxMobileWidth = Math.min(window.innerWidth - 32, 320);
+        const scaleH = maxMobileHeight / naturalHeight;
+        const scaleW = maxMobileWidth / naturalWidth;
+        const scale = Math.min(scaleH, scaleW);
+        setPreviewScale(Math.max(0.25, Math.min(1, scale)));
+      } else {
+        const containerHeight = rightPanelRef.current.clientHeight || 700;
+        const containerWidth = rightPanelRef.current.clientWidth || 500;
+        const targetHeight = containerHeight - 32;
+        const targetWidth = containerWidth ? containerWidth - 32 : naturalWidth;
+        const scaleH = targetHeight / naturalHeight;
+        const scaleW = targetWidth / naturalWidth;
+        const scale = Math.min(1, scaleH, scaleW);
+        setPreviewScale(scale > 0.1 ? scale : 0.1);
+      }
     };
 
     handleResize();
@@ -164,13 +185,20 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setSelectedStickerId(null);
   }, [selectedLayout, setStickers, setSelectedStickerId]);
 
-  // Sticker dragging handler
+  // Sticker dragging handler with touch pointer capture for mobile
   const handleStickerPointerDown = (
     e: React.PointerEvent<HTMLDivElement>,
     sticker: ActiveSticker
   ) => {
     e.stopPropagation();
     setSelectedStickerId(sticker.id);
+
+    const targetEl = e.currentTarget;
+    try {
+      targetEl.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
 
     if (!editorStripRef.current) return;
 
@@ -198,8 +226,13 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
       updateSticker(sticker.id, { x: newX, y: newY });
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (upEvent: PointerEvent) => {
       dragStartRef.current = null;
+      try {
+        targetEl.releasePointerCapture(upEvent.pointerId);
+      } catch {
+        // ignore
+      }
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
@@ -548,33 +581,116 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           <div className="p-4 max-h-[220px] lg:max-h-[340px] overflow-y-auto bg-slate-50/40">
             {/* THEMES TAB */}
             {editorTab === "theme" && (
-              <div className="grid grid-cols-2 gap-2 pb-1 select-none">
-                {THEMES.map((thm) => (
-                  <button
-                    key={thm.id}
-                    onClick={() => setSelectedTheme(thm)}
-                    className={`flex items-center gap-2 px-3 py-2.5 border rounded-none transition-all cursor-pointer ${
-                      selectedTheme.id === thm.id
-                        ? "border-slate-900 bg-slate-900 text-white shadow-inner"
-                        : "border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
-                    }`}
-                  >
-                    <span
-                      className="inline-block w-5 h-5 border border-slate-200 rounded-none flex-shrink-0"
-                      style={{ backgroundColor: thm.bg }}
-                    />
-                    <span
-                      className={`flex-1 text-left text-[11px] font-mono font-bold ${
-                        selectedTheme.id === thm.id ? "text-white" : "text-slate-700"
+              <div className="space-y-3 pb-1 select-none">
+                {/* Custom Canva/PNG Frame Upload Bar */}
+                <div className="p-3 border border-dashed border-slate-400 bg-amber-50/60 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold text-slate-800 uppercase flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-amber-600" />
+                      <span>Frame Gambar Sendiri (Canva/PNG)</span>
+                    </span>
+                    {frameImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFrameImage(null)}
+                        className="text-[9px] text-red-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Hapus Frame
+                      </button>
+                    )}
+                  </div>
+
+                  {frameImageUrl ? (
+                    <div className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-300">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-9 border border-slate-300 bg-slate-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <img src={frameImageUrl} alt="Frame" className="w-full h-full object-contain" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold text-emerald-700 block truncate">
+                            ✓ Frame Gambar Terpasang
+                          </span>
+                          <span className="text-[8px] text-slate-500 uppercase">
+                            Mode: {frameMode === "overlay" ? "Overlay (Menimpa)" : "Background"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setFrameImage(frameImageUrl, frameMode === "overlay" ? "background" : "overlay")}
+                        className="text-[8.5px] px-2 py-1 border border-slate-300 bg-slate-50 hover:bg-slate-100 font-mono font-bold uppercase cursor-pointer flex-shrink-0"
+                      >
+                        Ganti ke {frameMode === "overlay" ? "Background" : "Overlay"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 py-2 px-3 border border-slate-800 bg-white hover:bg-slate-50 text-slate-900 font-mono text-[9.5px] font-bold cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-xs">
+                        <Upload size={12} />
+                        <span>Upload PNG Canva</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              const file = e.target.files[0];
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                if (ev.target?.result) {
+                                  setFrameImage(ev.target.result as string, "overlay");
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      <Link
+                        href="/frames"
+                        className="py-2 px-3 border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[9.5px] font-bold cursor-pointer text-center whitespace-nowrap"
+                      >
+                        Frame Komunitas →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between font-mono text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase pt-1">
+                  <span>WARNA STRIP CLASSIC:</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {THEMES.map((thm) => (
+                    <button
+                      key={thm.id}
+                      onClick={() => {
+                        setSelectedTheme(thm);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2.5 border rounded-none transition-all cursor-pointer ${
+                        selectedTheme.id === thm.id
+                          ? "border-slate-900 bg-slate-900 text-white shadow-inner"
+                          : "border-slate-200 bg-white hover:bg-slate-50 shadow-sm"
                       }`}
                     >
-                      {thm.name}
-                    </span>
-                    {selectedTheme.id === thm.id && (
-                      <CheckCircle size={14} className="text-white flex-shrink-0" />
-                    )}
-                  </button>
-                ))}
+                      <span
+                        className="inline-block w-5 h-5 border border-slate-200 rounded-none flex-shrink-0"
+                        style={{ backgroundColor: thm.bg }}
+                      />
+                      <span
+                        className={`flex-1 text-left text-[11px] font-mono font-bold ${
+                          selectedTheme.id === thm.id ? "text-white" : "text-slate-700"
+                        }`}
+                      >
+                        {thm.name}
+                      </span>
+                      {selectedTheme.id === thm.id && (
+                        <CheckCircle size={14} className="text-white flex-shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -809,8 +925,8 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="w-full flex gap-3 mt-1 justify-center">
+        {/* Action Buttons: Sticky on Mobile for instantaneous one-thumb access */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-white/95 backdrop-blur-md border-t border-slate-300 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] flex gap-2.5 justify-center lg:static lg:bg-transparent lg:border-none lg:shadow-none lg:p-0 lg:mt-1">
           <button
             onClick={() => {
               if (confirm("Restart photoshoot? All current photos will be deleted.")) {
@@ -818,53 +934,85 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                 setStep("camera");
               }
             }}
-            className="py-3 px-4 border border-slate-800 bg-white text-slate-800 font-mono text-[10px] font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-50 active:translate-y-0.5 cursor-pointer"
+            className="py-3 px-3.5 border border-slate-800 bg-white text-slate-800 font-mono text-[10px] sm:text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-50 active:translate-y-0.5 cursor-pointer flex-shrink-0"
           >
             Retake All
           </button>
           <button
             onClick={compileHdExports}
-            className="flex-1 py-3 px-5 border border-slate-800 bg-slate-900 text-white font-mono text-[10px] font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-95 transition-transform flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex-1 max-w-sm lg:max-w-none py-3 px-4 border border-slate-800 bg-slate-900 text-white font-mono text-[11px] sm:text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-95 transition-transform flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <Sparkles size={12} className="text-[#FFE66D]" />
+            <Sparkles size={13} className="text-[#FFE66D]" />
             <span>Export HD Strip</span>
           </button>
         </div>
+
+        {/* Share design as frame button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!user) {
+              router.push("/login?redirect=/&reason=share");
+            } else {
+              setSaveAsTemplateOpen(true);
+            }
+          }}
+          className="w-full mt-2 mb-16 lg:mb-0 py-2.5 px-3 border border-slate-800 bg-[#FFE66D]/90 hover:bg-[#FFE66D] text-slate-950 font-mono text-[10px] font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <Sparkles size={12} className="text-amber-800" />
+          <span>Bagikan Desain Sebagai Frame Komunitas</span>
+        </button>
       </div>
 
       {/* Right Preview */}
       <div
         ref={rightPanelRef}
-        className="w-full lg:col-span-1 order-1 lg:order-2 flex flex-col items-center justify-center bg-slate-50 lg:border lg:border-slate-200 lg:p-6 rounded-none relative lg:h-full lg:overflow-hidden min-h-[380px]"
+        className="w-full lg:col-span-1 order-1 lg:order-2 flex flex-col items-center justify-center bg-slate-50 border border-slate-200 p-3 sm:p-4 lg:p-6 rounded-none relative lg:h-full lg:overflow-hidden"
       >
-        <div className="block lg:hidden text-center space-y-1 select-none mb-3">
+        <div className="block lg:hidden text-center space-y-0.5 select-none mb-2">
           <span className="text-[8px] font-bold text-slate-400 tracking-[0.3em] uppercase font-mono">PREVIEW</span>
-          <h2 className="text-lg font-bold text-slate-800 font-mono uppercase tracking-tight">Your Strip</h2>
+          <h2 className="text-base font-bold text-slate-800 font-mono uppercase tracking-tight">Your Strip</h2>
         </div>
 
+        {/* Scaled wrapper box matching exact visual footprint */}
         <div
-          className="relative flex items-center justify-center select-none animate-in fade-in duration-200"
+          className="relative flex items-center justify-center select-none animate-in fade-in duration-200 overflow-visible"
           style={{
-            transform: `scale(${previewScale})`,
-            transformOrigin: "center center",
-            transition: "transform 0.15s ease-out",
-            width: selectedLayout.type === "grid" ? "380px" : "300px",
-            height:
-              selectedLayout.type === "grid"
-                ? "440px"
+            width: `${(selectedLayout.type === "grid" ? 380 : 300) * previewScale}px`,
+            height: `${
+              (selectedLayout.type === "grid"
+                ? 440
                 : selectedLayout.frames === 4
-                  ? "980px"
+                  ? 980
                   : selectedLayout.frames === 3
-                    ? "760px"
-                    : "545px",
+                    ? 760
+                    : 545) * previewScale
+            }px`,
+            transition: "width 0.15s ease-out, height 0.15s ease-out",
           }}
         >
           <div
-            ref={editorStripRef}
-            className="p-[14px] shadow-2xl flex flex-col gap-[10px] relative rounded-none transition-all duration-200"
             style={{
               width: selectedLayout.type === "grid" ? "380px" : "300px",
-              backgroundColor: selectedTheme.bg,
+              height:
+                selectedLayout.type === "grid"
+                  ? "440px"
+                  : selectedLayout.frames === 4
+                    ? "980px"
+                    : selectedLayout.frames === 3
+                      ? "760px"
+                      : "545px",
+              transform: `scale(${previewScale})`,
+              transformOrigin: "top left",
+              transition: "transform 0.15s ease-out",
+            }}
+          >
+            <div
+              ref={editorStripRef}
+            className="p-[14px] shadow-2xl flex flex-col gap-[10px] relative rounded-none transition-all duration-200 overflow-hidden"
+            style={{
+              width: selectedLayout.type === "grid" ? "380px" : "300px",
+              backgroundColor: frameImageUrl && frameMode === "background" ? "transparent" : selectedTheme.bg,
               color: selectedTheme.text,
               border: `1.5px solid ${selectedTheme.text}`,
               height:
@@ -879,6 +1027,16 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                 "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
             }}
           >
+            {/* Custom Background Image (Canva / Photoshop) */}
+            {frameImageUrl && frameMode === "background" && (
+              <img
+                src={frameImageUrl}
+                crossOrigin="anonymous"
+                alt="Frame Background"
+                className="absolute inset-0 w-full h-full object-fill pointer-events-none z-0"
+              />
+            )}
+
             <div className="relative z-10 w-full flex-1 flex flex-col" ref={dragContainerRef}>
               {renderStripPhotoGrid()}
 
@@ -914,6 +1072,16 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
               })}
             </div>
 
+            {/* Custom Overlay Image (Canva / Photoshop PNG Cutout) */}
+            {frameImageUrl && frameMode === "overlay" && (
+              <img
+                src={frameImageUrl}
+                crossOrigin="anonymous"
+                alt="Frame Overlay"
+                className="absolute inset-0 w-full h-full object-fill pointer-events-none z-20"
+              />
+            )}
+
             {/* FOOTER AREA */}
             <div
               className="flex flex-col items-center justify-center gap-1.5 pt-4 pb-2 mt-auto min-h-[85px] relative z-10 select-none"
@@ -946,6 +1114,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           </div>
         </div>
       </div>
+    </div>
 
       {/* PRO WATERMARK DEMO MODAL */}
       {proModalOpen && (
@@ -1015,6 +1184,36 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      {templateSuccessToast && (
+        <div className="fixed top-20 right-6 z-50 p-3 bg-emerald-500 text-white font-mono text-xs font-bold border border-slate-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle size={14} />
+          <span>{templateSuccessToast}</span>
+        </div>
+      )}
+
+      {/* Save As Template Modal */}
+      <CreateTemplateModal
+        isOpen={saveAsTemplateOpen}
+        onClose={() => setSaveAsTemplateOpen(false)}
+        onCreated={(newTpl) => {
+          setTemplateSuccessToast(`Frame "${newTpl.name}" berhasil dipublikasikan!`);
+          setTimeout(() => setTemplateSuccessToast(null), 3500);
+        }}
+        initialValues={{
+          name: caption ? `${caption} Frame` : `${selectedTheme.name} Strip`,
+          type: selectedLayout.type,
+          frames: selectedLayout.frames,
+          bg_color: selectedTheme.bg,
+          text_color: selectedTheme.text,
+          caption: caption || "POSEAN MEMORIES",
+          default_filter: globalFilter,
+          stickers: stickers,
+          image_url: frameImageUrl || undefined,
+          frame_mode: frameMode,
+        }}
+      />
     </motion.div>
   );
 }

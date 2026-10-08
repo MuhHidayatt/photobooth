@@ -40,16 +40,52 @@ async function compressBase64(dataUrl: string, maxWidth: number, quality: number
   });
 }
 
+// Downscale PNG while preserving transparency
+export function compressPngBase64(dataUrl: string, maxDim: number = 900): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(dataUrl);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 // Convert base64 dataUrl to Blob/File and upload to Supabase Storage
 export async function uploadBase64ToStorage(
   userId: string,
   dataUrl: string,
   fileExtension: string
 ): Promise<string> {
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseConfigured || !supabase) {
     // Fallback: return compressed dataUrl for local mock persistence
     if (fileExtension === "jpg") {
       return await compressBase64(dataUrl, 400, 0.7);
+    }
+    if (fileExtension === "png") {
+      return await compressPngBase64(dataUrl, 800);
     }
     if (fileExtension === "gif" && dataUrl.length > 1500000) {
       console.warn("Mock local GIF too large, skipping GIF persistence to save localStorage quota.");
@@ -65,10 +101,17 @@ export async function uploadBase64ToStorage(
       .toString(36)
       .substring(2, 7)}.${fileExtension}`;
 
-    const { data, error } = await supabase.storage
+    const contentType =
+      fileExtension === "gif"
+        ? "image/gif"
+        : fileExtension === "png"
+          ? "image/png"
+          : "image/jpeg";
+
+    const { error } = await supabase.storage
       .from("photobooths")
       .upload(fileName, blob, {
-        contentType: fileExtension === "gif" ? "image/gif" : "image/jpeg",
+        contentType,
         cacheControl: "3600",
         upsert: false,
       });

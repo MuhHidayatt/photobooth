@@ -19,19 +19,36 @@ import {
   Settings,
   Sparkles,
   ShieldCheck,
+  Music,
+  Play,
+  Pause,
+  ChevronDown,
 } from "lucide-react";
+import { MUSIC_TRACKS } from "@/utils/audio";
 import AuthModal from "./AuthModal";
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, profile, signOut, initialize, isPasswordRecovery } = useAuthStore();
-  const { audioMuted, setAudioMuted, setStep } = usePhotoboothStore();
+  const { 
+    audioMuted, 
+    setAudioMuted, 
+    setStep,
+    isMusicPlaying,
+    toggleMusic,
+    musicTrack,
+    setMusicTrack,
+    musicVolume,
+    setMusicVolume,
+  } = usePhotoboothStore();
   
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [musicMenuOpen, setMusicMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const musicMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initialize();
@@ -49,6 +66,9 @@ export default function Header() {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (musicMenuRef.current && !musicMenuRef.current.contains(event.target as Node)) {
+        setMusicMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -103,6 +123,21 @@ export default function Header() {
               </Link>
             )}
 
+            {/* Frame shortcut */}
+            <button
+              onClick={() => {
+                if (!user) {
+                  router.push("/login?redirect=/frames");
+                } else {
+                  router.push("/frames");
+                }
+              }}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-slate-800 bg-white hover:bg-slate-50 text-slate-800 font-mono text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
+            >
+              <Sparkles size={13} className="text-[#F6A04D]" />
+              <span>Frames</span>
+            </button>
+
             {/* Start Photobooth shortcut */}
             <button
               onClick={handleStartPhotobooth}
@@ -112,14 +147,143 @@ export default function Header() {
               <span>Start Photobooth</span>
             </button>
 
-            {/* Mute toggle button */}
-            <button
-              onClick={() => setAudioMuted(!audioMuted)}
-              className="p-2 border border-slate-800 bg-white hover:bg-slate-50 transition-colors focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
-              title={audioMuted ? "Unmute Sound" : "Mute Sound"}
-            >
-              {audioMuted ? <VolumeX size={15} className="text-slate-800" /> : <Volume2 size={15} className="text-slate-800" />}
-            </button>
+            {/* Background Music & Sound Controls */}
+            <div className="relative" ref={musicMenuRef}>
+              <div className="flex items-center">
+                {/* Play / Pause Toggle Button */}
+                <button
+                  onClick={() => toggleMusic()}
+                  className={`flex items-center gap-1.5 px-2.5 py-2 border border-slate-800 transition-all font-mono text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer ${
+                    isMusicPlaying
+                      ? "bg-[#FFE66D] text-slate-950"
+                      : "bg-white hover:bg-slate-50 text-slate-700"
+                  }`}
+                  title={isMusicPlaying ? "Jeda Musik (BGM On)" : "Putar Musik Background (BGM Off)"}
+                >
+                  {isMusicPlaying ? (
+                    <>
+                      <Music size={14} className="text-slate-900 animate-pulse" />
+                      <div className="flex items-end gap-[1.5px] h-3 w-2.5">
+                        <span className="w-0.5 bg-slate-900 rounded-full h-full animate-[pulse_0.6s_ease-in-out_infinite]" />
+                        <span className="w-0.5 bg-slate-900 rounded-full h-2/3 animate-[pulse_0.4s_ease-in-out_infinite]" />
+                        <span className="w-0.5 bg-slate-900 rounded-full h-4/5 animate-[pulse_0.8s_ease-in-out_infinite]" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Music size={14} className="text-slate-400" />
+                      <span className="text-[10px] uppercase font-bold text-slate-500">BGM</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Dropdown Options Trigger */}
+                <button
+                  onClick={() => setMusicMenuOpen(!musicMenuOpen)}
+                  className="p-2 border-y border-r border-slate-800 bg-white hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer text-slate-700"
+                  title="Pilih Lagu & Volume BGM"
+                >
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${musicMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+
+              {/* Music Settings & Track Popover */}
+              {musicMenuOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-[#FCF8F2] border border-slate-900 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-3.5 z-50 font-mono text-xs animate-in fade-in slide-in-from-top-1 duration-150 rounded-none">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-900 uppercase">
+                      <span>🎵</span>
+                      <span>BGM Photobooth</span>
+                    </div>
+                    <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${
+                      isMusicPlaying 
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                        : "bg-slate-200 text-slate-600 border-slate-300"
+                    }`}>
+                      {isMusicPlaying ? "Playing" : "Paused"}
+                    </span>
+                  </div>
+
+                  {/* Tracks List */}
+                  <div className="my-2.5 space-y-1">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Pilih Lagu:</p>
+                    {MUSIC_TRACKS.map((t) => {
+                      const isSelected = musicTrack === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            setMusicTrack(t.id);
+                            if (!isMusicPlaying) toggleMusic(t.id);
+                          }}
+                          className={`w-full flex items-center justify-between p-2 border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-[#FFE66D] border-slate-900 font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-slate-950"
+                              : "bg-white border-slate-200 hover:border-slate-400 text-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{t.emoji}</span>
+                            <div>
+                              <p className="text-xs leading-none">{t.title}</p>
+                              <p className="text-[9px] text-slate-500 font-normal mt-0.5">{t.genre} • {t.bpm} BPM</p>
+                            </div>
+                          </div>
+                          {isSelected && isMusicPlaying ? (
+                            <div className="flex items-end gap-[1.5px] h-3 w-2.5">
+                              <span className="w-0.5 bg-slate-950 rounded-full h-full animate-[pulse_0.6s_ease-in-out_infinite]" />
+                              <span className="w-0.5 bg-slate-950 rounded-full h-2/3 animate-[pulse_0.4s_ease-in-out_infinite]" />
+                              <span className="w-0.5 bg-slate-950 rounded-full h-4/5 animate-[pulse_0.8s_ease-in-out_infinite]" />
+                            </div>
+                          ) : (
+                            <Play size={11} className={isSelected ? "text-slate-950" : "text-slate-400"} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Volume Slider */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                        <Volume2 size={12} />
+                        <span>Volume Musik</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-700">
+                        {Math.round(musicVolume * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={musicVolume}
+                      onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                      className="w-full accent-slate-900 cursor-pointer h-1.5 bg-slate-200"
+                    />
+                  </div>
+
+                  {/* Sound Effects (SFX) toggle */}
+                  <div className="mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold">
+                      Suara Shutter Kamera
+                    </span>
+                    <button
+                      onClick={() => setAudioMuted(!audioMuted)}
+                      className={`px-2 py-0.5 text-[9px] font-bold uppercase border cursor-pointer ${
+                        !audioMuted 
+                          ? "bg-slate-900 text-white border-slate-900" 
+                          : "bg-white text-slate-400 border-slate-300"
+                      }`}
+                    >
+                      {!audioMuted ? "ON" : "MUTE"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* User Profile dropdown or Login */}
             {user ? (
@@ -156,6 +320,15 @@ export default function Header() {
                         <span>Admin Dashboard</span>
                       </Link>
                     )}
+
+                    <Link
+                      href="/frames"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                    >
+                      <Sparkles size={13} className="text-[#F6A04D]" />
+                      <span>Koleksi Frame</span>
+                    </Link>
 
                     <Link
                       href="/my-photobooths"
@@ -225,9 +398,83 @@ export default function Header() {
               <span>START PHOTOBOOTH</span>
             </button>
 
-            {user && (
+            {/* Mobile BGM Music Controller */}
+            <div className="p-3 border border-slate-900 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                  <Music size={14} className="text-[#F6A04D]" />
+                  <span>BGM PHOTOBOOTH</span>
+                </div>
+                <button
+                  onClick={() => toggleMusic()}
+                  className={`px-2.5 py-1 text-[10px] font-bold uppercase border border-slate-900 cursor-pointer transition-all ${
+                    isMusicPlaying 
+                      ? "bg-[#FFE66D] text-slate-950 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]" 
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {isMusicPlaying ? "⏸️ Jeda Musik" : "▶️ Putar Musik"}
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-1">
+                {MUSIC_TRACKS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setMusicTrack(t.id);
+                      if (!isMusicPlaying) toggleMusic(t.id);
+                    }}
+                    className={`p-1.5 border text-center text-[10px] font-bold cursor-pointer transition-all ${
+                      musicTrack === t.id
+                        ? "border-slate-900 bg-[#FFE66D] text-slate-950 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
+                    }`}
+                  >
+                    <div>{t.emoji}</div>
+                    <div className="truncate text-[8px] mt-0.5">{t.genre}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Volume Slider for Mobile */}
+              <div className="pt-1 border-t border-slate-100 flex items-center gap-2">
+                <Volume2 size={12} className="text-slate-400 flex-shrink-0" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={musicVolume}
+                  onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
+                  className="w-full accent-slate-900 cursor-pointer h-1.5 bg-slate-200"
+                />
+                <span className="text-[9px] font-bold text-slate-500 w-7 text-right">
+                  {Math.round(musicVolume * 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Common mobile menu items */}
+            <div className="space-y-1.5 pt-1">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  router.push("/frames");
+                }}
+                className="w-full text-left flex items-center justify-between px-3 py-2.5 border border-slate-300 bg-white text-slate-800 font-bold cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-[#F6A04D]" />
+                  <span>Koleksi Frame Komunitas</span>
+                </div>
+                <span className="text-[9px] bg-[#FFE66D] px-1.5 py-0.5 border border-slate-800">BARU</span>
+              </button>
+            </div>
+
+            {user ? (
               <div className="space-y-1 pt-2 border-t border-slate-200/60">
-                <p className="text-[10px] text-slate-400 font-bold px-2 py-1">MENU</p>
+                <p className="text-[10px] text-slate-400 font-bold px-2 py-1">MENU AKUN</p>
                 {profile?.role === "admin" && (
                   <Link
                     href="/admin"
@@ -268,6 +515,19 @@ export default function Header() {
                 >
                   <LogOut size={14} />
                   <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setAuthModalOpen(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-900 bg-slate-900 text-white font-bold cursor-pointer"
+                >
+                  <User size={14} />
+                  <span>MASUK / DAFTAR AKUN</span>
                 </button>
               </div>
             )}

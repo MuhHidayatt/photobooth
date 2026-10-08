@@ -58,16 +58,20 @@ export default function SaveMemoriesModal({
             <X size={13} />
           </button>
 
-          <div className="mx-auto w-12 h-12 bg-[#FFE66D] border border-slate-800 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] mb-4 text-lg">
+          <div className="mx-auto w-12 h-12 bg-[#FFE66D] border border-slate-800 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] mb-3 text-lg">
             💾
           </div>
 
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-            Save your memories?
+          <div className="inline-block px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[9px] uppercase tracking-wider mb-2">
+            ✨ Eits, login dulu yaa!
+          </div>
+
+          <h3 className="text-sm font-bold uppercase tracking-tight text-slate-900">
+            Jangan Biarkan Hasil Pose Kece Ini Hilang!
           </h3>
           
-          <p className="text-[11px] text-slate-400 leading-relaxed uppercase tracking-wider mt-2 mb-6">
-            Sign in to store your photobooths and GIFs in your personal account.
+          <p className="text-[11px] text-slate-500 leading-relaxed mt-1 mb-5">
+            Masuk akun sebentar yuk, biar strip foto & animasi GIF-mu aman tersimpan di galeri pribadi dan bisa dibuka kapan aja.
           </p>
 
           <div className="flex flex-col gap-3">

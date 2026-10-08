@@ -140,14 +140,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         {/* Header title */}
         <div className="mb-6 mt-2 text-center">
+          <div className="inline-block px-3 py-1 bg-[#FFE66D] border border-slate-900 text-slate-950 font-black text-[10px] uppercase tracking-wider mb-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            ✨ Eits, login dulu yaa!
+          </div>
           <h2 className="text-xl font-bold uppercase tracking-wider text-slate-800">
             {mode === "signin" && "WELCOME BACK"}
             {mode === "signup" && "CREATE ACCOUNT"}
             {mode === "reset" && "RESET PASSWORD"}
             {mode === "update-password" && "SET NEW PASSWORD"}
           </h2>
-          <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest">
-            {isConfigured ? "✨ SECURED BY SUPABASE" : "⚡ RUNNING IN LOCAL DEMO MODE"}
+          <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+            {mode === "signin" && "Masuk akun dulu sebentar yuk biar memorimu tersimpan aman ✌️"}
+            {mode === "signup" && "Daftar akun cepat cuma semenit buat buka semua fitur seru Posean!"}
+            {mode === "reset" && "Masukkan emailmu buat kirim tautan reset kata sandi."}
+            {mode === "update-password" && "Ketik kata sandi baru untuk akunmu."}
           </p>
         </div>
 

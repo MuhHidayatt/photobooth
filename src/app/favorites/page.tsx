@@ -48,21 +48,24 @@ export default function FavoritesPage() {
   if (!user) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] py-12 px-4 text-center font-mono max-w-md mx-auto">
-        <div className="w-14 h-14 bg-slate-100 border border-slate-350 flex items-center justify-center text-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-5 rounded-none select-none">
-          🔒
+        <div className="w-14 h-14 bg-[#FFE66D] border border-slate-900 flex items-center justify-center text-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4 rounded-none select-none">
+          ❤️
         </div>
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-1">
-          Access Restricted
+        <div className="inline-block px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[9px] uppercase tracking-wider mb-2">
+          ✨ Eits, login dulu yaa!
+        </div>
+        <h2 className="text-base font-bold uppercase tracking-tight text-slate-900 mb-1">
+          Daftar Foto Favoritmu Masih Di-Private!
         </h2>
-        <p className="text-[10px] text-slate-400 uppercase tracking-widest leading-relaxed mb-8">
-          Sign in to view your favorite creations.
+        <p className="text-xs text-slate-500 leading-relaxed mb-6 max-w-xs">
+          Login dulu yuk biar kamu bisa lihat semua koleksi strip photobooth yang pernah kamu tandai dengan tanda love.
         </p>
         <button
           onClick={() => setAuthOpen(true)}
-          className="flex items-center gap-1.5 px-6 py-3 border border-slate-800 bg-slate-950 text-white font-bold text-xs uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
+          className="flex items-center gap-1.5 px-6 py-3 border border-slate-900 bg-slate-900 text-white font-bold text-xs uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
         >
           <LogIn size={13} />
-          <span>Login to Account</span>
+          <span>Lihat Favorit (Login Dulu)</span>
         </button>
         <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
       </div>
