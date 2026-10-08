@@ -46,6 +46,9 @@ export interface CmsFrameItem {
   is_pro: boolean;
   is_active: boolean;
   preview_url?: string;
+  image_url?: string;
+  frame_mode?: "overlay" | "background";
+  creator_name?: string;
   created_at: string;
 }
 

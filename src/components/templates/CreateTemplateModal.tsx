@@ -25,6 +25,7 @@ interface CreateTemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (newTemplate: CommunityFrameTemplate) => void;
+  isAdmin?: boolean;
   initialValues?: {
     name?: string;
     description?: string;
@@ -63,9 +64,11 @@ export default function CreateTemplateModal({
   isOpen,
   onClose,
   onCreated,
+  isAdmin = false,
   initialValues,
 }: CreateTemplateModalProps) {
   const { user, profile } = useAuthStore();
+  const [isPro, setIsPro] = useState(false);
 
   // Mode switcher: "upload" (Canva / Photoshop) vs "studio" (Warna & Stiker)
   const [creationMode, setCreationMode] = useState<"upload" | "studio">(
@@ -260,6 +263,29 @@ export default function CreateTemplateModal({
         frame_mode: creationMode === "upload" ? frameMode : undefined,
       });
 
+      // If created by an admin or in admin mode, also save directly into cms_frames
+      if (isAdmin || profile?.role === "admin") {
+        try {
+          const { saveCmsFrame } = await import("@/utils/adminHelpers");
+          await saveCmsFrame({
+            id: newTpl.id,
+            name: name.trim(),
+            type: layoutType,
+            frames: framesCount,
+            aspect_ratio: layoutType === "grid" ? "1/1" : "4/3",
+            bg_color: creationMode === "upload" ? (frameMode === "background" ? "#FFFFFF" : bgColor) : bgColor,
+            text_color: textColor,
+            is_pro: isPro,
+            is_active: true,
+            image_url: finalImageUrl,
+            frame_mode: creationMode === "upload" ? frameMode : undefined,
+            creator_name: creatorName,
+          });
+        } catch (e) {
+          console.warn("saveCmsFrame failed:", e);
+        }
+      }
+
       onCreated(newTpl);
       onClose();
     } catch (err: any) {
@@ -284,10 +310,12 @@ export default function CreateTemplateModal({
             </div>
             <div>
               <h2 className="font-mono font-bold text-xs sm:text-sm uppercase tracking-tight text-slate-900">
-                Buat Frame Komunitas Baru
+                {isAdmin ? "Admin Studio: Buat / Upload Desain Frame" : "Buat Frame Komunitas Baru"}
               </h2>
               <span className="text-[9px] font-mono text-slate-700 block -mt-0.5">
-                Bagikan karya frame estetikmu untuk dinikmati seluruh pengguna Posean
+                {isAdmin
+                  ? "Skenario A: Unggah desain Canva / Photoshop resmi dan atur ketersediaan akses"
+                  : "Bagikan karya frame estetikmu untuk dinikmati seluruh pengguna Posean"}
               </span>
             </div>
           </div>
@@ -400,6 +428,27 @@ export default function CreateTemplateModal({
                   maxLength={100}
                 />
               </div>
+
+              {/* Admin Special: PRO Status Toggle */}
+              {(isAdmin || profile?.role === "admin") && (
+                <div className="p-2.5 bg-amber-50 border border-amber-300 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="admin-pro-chk"
+                      checked={isPro}
+                      onChange={(e) => setIsPro(e.target.checked)}
+                      className="cursor-pointer"
+                    />
+                    <label htmlFor="admin-pro-chk" className="text-[10px] font-bold text-amber-900 cursor-pointer select-none">
+                      👑 Tandai Sebagai Frame Eksklusif PRO / VIP
+                    </label>
+                  </div>
+                  <span className="text-[9px] bg-amber-200 text-amber-800 px-1.5 py-0.5 font-bold uppercase">
+                    Admin
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* 2. Format Layout Selection */}

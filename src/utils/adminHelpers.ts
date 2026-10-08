@@ -470,24 +470,57 @@ export async function deleteAdminPhotobooth(id: string): Promise<void> {
 
 // 7. CMS: Frames
 export async function fetchCmsFrames(): Promise<CmsFrameItem[]> {
+  let cmsList: CmsFrameItem[] = [];
+
   if (!isSupabaseConfigured) {
     const raw = localStorage.getItem("posean_cms_frames");
-    if (raw) return JSON.parse(raw);
-    localStorage.setItem("posean_cms_frames", JSON.stringify(DEMO_FRAMES));
-    return DEMO_FRAMES;
+    cmsList = raw ? JSON.parse(raw) : DEMO_FRAMES;
+  } else {
+    try {
+      const { data, error } = await supabase
+        .from("cms_frames")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data && data.length > 0) {
+        cmsList = data;
+      } else {
+        cmsList = DEMO_FRAMES;
+      }
+    } catch {
+      cmsList = DEMO_FRAMES;
+    }
   }
 
+  // Also include custom uploaded frames from community templates so admin can inspect & manage them
   try {
-    const { data, error } = await supabase
-      .from("cms_frames")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    if (!data || data.length === 0) return DEMO_FRAMES;
-    return data;
-  } catch {
-    return DEMO_FRAMES;
+    const { fetchCommunityTemplates } = await import("./templateHelpers");
+    const communityList = await fetchCommunityTemplates();
+    const existingIds = new Set(cmsList.map((f) => f.id));
+
+    communityList.forEach((tpl) => {
+      if (!existingIds.has(tpl.id)) {
+        cmsList.push({
+          id: tpl.id,
+          name: tpl.name,
+          type: tpl.type,
+          frames: tpl.frames,
+          aspect_ratio: tpl.aspect_ratio,
+          bg_color: tpl.bg_color,
+          text_color: tpl.text_color,
+          is_pro: false,
+          is_active: true,
+          image_url: tpl.image_url,
+          frame_mode: tpl.frame_mode,
+          creator_name: tpl.creator_name,
+          created_at: tpl.created_at,
+        });
+      }
+    });
+  } catch (err) {
+    // Non-blocking
   }
+
+  return cmsList;
 }
 
 export async function saveCmsFrame(
@@ -546,15 +579,23 @@ export async function deleteCmsFrame(id: string): Promise<void> {
     const current = await fetchCmsFrames();
     const filtered = current.filter((f) => f.id !== id);
     localStorage.setItem("posean_cms_frames", JSON.stringify(filtered));
-    return;
+  } else {
+    try {
+      const { error } = await supabase.from("cms_frames").delete().eq("id", id);
+      if (error) throw error;
+    } catch {
+      const current = await fetchCmsFrames();
+      const filtered = current.filter((f) => f.id !== id);
+      localStorage.setItem("posean_cms_frames", JSON.stringify(filtered));
+    }
   }
+
+  // Also remove from community frame templates if it was from there
   try {
-    const { error } = await supabase.from("cms_frames").delete().eq("id", id);
-    if (error) throw error;
-  } catch {
-    const current = await fetchCmsFrames();
-    const filtered = current.filter((f) => f.id !== id);
-    localStorage.setItem("posean_cms_frames", JSON.stringify(filtered));
+    const { deleteCommunityTemplate } = await import("./templateHelpers");
+    await deleteCommunityTemplate(id);
+  } catch (err) {
+    // Non-blocking
   }
 }
 

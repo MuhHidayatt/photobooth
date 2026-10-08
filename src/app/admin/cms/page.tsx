@@ -12,6 +12,8 @@ import {
   Smile,
   RefreshCw,
   Sparkles,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   fetchCmsFrames,
@@ -23,6 +25,7 @@ import {
 } from "@/utils/adminHelpers";
 import { CmsFrameItem, CmsStickerItem } from "@/types/admin";
 import { THEMES } from "@/store/usePhotoboothStore";
+import CreateTemplateModal from "@/components/templates/CreateTemplateModal";
 
 export default function AdminCmsPage() {
   const [activeTab, setActiveTab] = useState<"frames" | "stickers" | "themes">("frames");
@@ -31,6 +34,7 @@ export default function AdminCmsPage() {
   const [frames, setFrames] = useState<CmsFrameItem[]>([]);
   const [framesLoading, setFramesLoading] = useState(true);
   const [isFrameModalOpen, setIsFrameModalOpen] = useState(false);
+  const [isCustomFrameModalOpen, setIsCustomFrameModalOpen] = useState(false);
   const [newFrame, setNewFrame] = useState({
     name: "",
     type: "strip" as "strip" | "grid",
@@ -153,15 +157,25 @@ export default function AdminCmsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {activeTab === "frames" && (
-            <button
-              onClick={() => setIsFrameModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 text-white text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-95 active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
-            >
-              <Plus size={13} />
-              <span>Tambah Frame Baru</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsCustomFrameModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FFE66D] border border-slate-900 text-slate-950 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-95 active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+              >
+                <Upload size={13} />
+                <span>🖼️ Upload Frame Canva / Photoshop</span>
+              </button>
+
+              <button
+                onClick={() => setIsFrameModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-800 text-slate-800 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-50 active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>+ Layout Standar</span>
+              </button>
+            </>
           )}
 
           {activeTab === "stickers" && (
@@ -217,51 +231,95 @@ export default function AdminCmsPage() {
 
       {/* TAB 1: FRAMES */}
       {activeTab === "frames" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {frames.map((f) => (
-            <div
-              key={f.id}
-              className="bg-white border border-slate-300 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 border border-slate-200 uppercase">
-                    {f.type.toUpperCase()} • {f.frames} FRAMES
-                  </span>
-                  {f.is_pro ? (
-                    <span className="flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5">
-                      <Crown size={10} /> PRO
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 border border-slate-200">
-                      FREE
-                    </span>
-                  )}
-                </div>
-
-                <div
-                  className="h-28 border border-slate-300 p-2 flex flex-col items-center justify-center gap-1 shadow-inner"
-                  style={{ backgroundColor: f.bg_color, color: f.text_color }}
-                >
-                  <div className="text-xs font-bold">{f.name}</div>
-                  <div className="text-[9px] opacity-75">
-                    {f.frames} Shots Collage
-                  </div>
-                </div>
-
-                <div className="text-xs space-y-1">
-                  <div className="text-slate-400 text-[9.5px]">Warna Strip:</div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-4 h-4 border border-slate-300"
-                      style={{ backgroundColor: f.bg_color }}
-                    />
-                    <span className="text-[10px] text-slate-700 font-bold">
-                      {f.bg_color}
-                    </span>
-                  </div>
-                </div>
+        <div className="space-y-4">
+          {/* Skenario A Feature Callout Banner */}
+          <div className="p-3 bg-amber-50/80 border border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono shadow-[2px_2px_0px_0px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-[#FFE66D] border border-slate-900 flex items-center justify-center font-bold text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-shrink-0">
+                🖼️
               </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase">
+                  Skenario A: Upload Gambar Desain Sendiri (Canva / Photoshop / Procreate)
+                </h3>
+                <p className="text-[10px] text-slate-600 mt-0.5">
+                  Admin dapat mengunggah frame PNG transparan beresolusi tinggi, menata posisi lubang slot foto, serta menentukan akses Free atau PRO.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsCustomFrameModalOpen(true)}
+              className="px-3.5 py-2 bg-slate-900 text-white text-[11px] font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-800 cursor-pointer flex-shrink-0 flex items-center gap-1.5"
+            >
+              <Upload size={12} />
+              <span>Upload Desain Sekarang</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {frames.map((f) => (
+              <div
+                key={f.id}
+                className="bg-white border border-slate-300 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 border border-slate-200 uppercase">
+                      {f.type.toUpperCase()} • {f.frames} FRAMES
+                    </span>
+                    {f.is_pro ? (
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5">
+                        <Crown size={10} /> PRO
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 border border-slate-200">
+                        FREE
+                      </span>
+                    )}
+                  </div>
+
+                  {f.image_url ? (
+                    <div className="h-40 border border-slate-300 bg-slate-100 relative overflow-hidden flex items-center justify-center p-2 group shadow-inner">
+                      <img
+                        src={f.image_url}
+                        alt={f.name}
+                        className="max-h-full max-w-full object-contain shadow-xs transition-transform group-hover:scale-105 duration-200"
+                      />
+                      <div className="absolute top-1.5 left-1.5 bg-slate-900/90 text-white text-[8px] font-bold px-1.5 py-0.5 uppercase tracking-wider backdrop-blur-xs flex items-center gap-1">
+                        <Sparkles size={9} className="text-[#FFE66D]" />
+                        <span>{f.frame_mode === "background" ? "Background" : "Canva / PNG"}</span>
+                      </div>
+                      {f.creator_name && (
+                        <div className="absolute bottom-1.5 right-1.5 bg-white/90 text-slate-800 text-[8px] font-bold px-1.5 py-0.5 border border-slate-300 truncate max-w-[120px]">
+                          {f.creator_name}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className="h-28 border border-slate-300 p-2 flex flex-col items-center justify-center gap-1 shadow-inner"
+                      style={{ backgroundColor: f.bg_color, color: f.text_color }}
+                    >
+                      <div className="text-xs font-bold">{f.name}</div>
+                      <div className="text-[9px] opacity-75">
+                        {f.frames} Shots Collage
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs space-y-1">
+                    <div className="text-xs font-bold text-slate-900 truncate">{f.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3.5 h-3.5 border border-slate-300"
+                        style={{ backgroundColor: f.bg_color }}
+                      />
+                      <span className="text-[9.5px] text-slate-500 font-bold">
+                        {f.image_url ? "Custom Graphic Frame" : f.bg_color}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
               <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[9px] text-emerald-600 font-bold flex items-center gap-1">
@@ -277,6 +335,7 @@ export default function AdminCmsPage() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
@@ -602,6 +661,16 @@ export default function AdminCmsPage() {
           </form>
         </div>
       )}
+
+      {/* Skenario A: Upload Gambar Desain Sendiri Modal (Canva / Photoshop / Procreate) */}
+      <CreateTemplateModal
+        isOpen={isCustomFrameModalOpen}
+        onClose={() => setIsCustomFrameModalOpen(false)}
+        onCreated={() => {
+          loadFrames();
+        }}
+        isAdmin={true}
+      />
     </div>
   );
 }
