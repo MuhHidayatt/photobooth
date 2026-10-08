@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { audio } from "@/utils/audio";
 
 export type Step = "landing" | "layout" | "camera" | "editor" | "export";
@@ -280,7 +281,9 @@ interface PhotoboothState {
   resetStore: () => void;
 }
 
-export const usePhotoboothStore = create<PhotoboothState>((set, get) => ({
+export const usePhotoboothStore = create<PhotoboothState>()(
+  persist(
+    (set, get) => ({
   // Navigation
   step: "landing",
   setStep: (step) => set({ step }),
@@ -481,4 +484,32 @@ export const usePhotoboothStore = create<PhotoboothState>((set, get) => ({
       isGeneratingGif: false,
       isGeneratingVideo: false,
     })),
-}));
+    }),
+    {
+      name: "posean_photobooth_session",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        step: state.step,
+        selectedLayout: state.selectedLayout,
+        selectedTheme: state.selectedTheme,
+        countdownTime: state.countdownTime,
+        capturedPhotos: state.capturedPhotos,
+        activePhotoEffects: state.activePhotoEffects,
+        globalFilter: state.globalFilter,
+        selectedFilterTarget: state.selectedFilterTarget,
+        stickers: state.stickers,
+        caption: state.caption,
+        frameImageUrl: state.frameImageUrl,
+        frameMode: state.frameMode,
+        showWatermark: state.showWatermark,
+        cloudImageUrl: state.cloudImageUrl,
+        exportJpgUrl: state.exportJpgUrl,
+        exportGifUrl: state.exportGifUrl,
+        exportVideoUrl: state.exportVideoUrl,
+        audioMuted: state.audioMuted,
+        musicTrack: state.musicTrack,
+        musicVolume: state.musicVolume,
+      }),
+    }
+  )
+);

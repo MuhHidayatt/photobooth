@@ -32,6 +32,20 @@ export default function Photobooth() {
   const [pendingJpg, setPendingJpg] = useState<string | null>(null);
   const [pendingGif, setPendingGif] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 flex flex-col justify-center items-center w-full min-h-[60vh] font-mono text-xs text-slate-400">
+        <RefreshCw size={24} className="animate-spin text-slate-800 mb-2" />
+        <span className="uppercase tracking-widest">Memuat Sesi Photobooth...</span>
+      </div>
+    );
+  }
 
   const handleExportsCompleted = async (jpgUrlVal: string, gifUrlVal: string | null) => {
     const currentUser = useAuthStore.getState().user;
