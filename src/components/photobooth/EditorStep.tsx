@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { toJpeg } from "html-to-image";
+import { toJpeg, toPng } from "html-to-image";
 import gifshot from "gifshot";
 import Link from "next/link";
 import {
@@ -29,6 +29,7 @@ import {
 } from "@/store/usePhotoboothStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { generateRandomDoodles, getFilteredPhotoFrames } from "@/utils/photoboothHelpers";
+import { detectFrameSlots } from "@/utils/frameDetector";
 import CreateTemplateModal from "@/components/templates/CreateTemplateModal";
 
 interface EditorStepProps {
@@ -56,9 +57,14 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setCaption,
     frameImageUrl,
     frameMode,
+    customSlots,
+    frameAspectRatio,
     setFrameImage,
+    setCustomSlots,
     showWatermark,
     setShowWatermark,
+
+
     stickers,
     setStickers,
     addSticker,
@@ -69,6 +75,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     stickerColor,
     setStickerColor,
     setExportJpgUrl,
+    setExportPngUrl,
     setExportGifUrl,
     setExportVideoUrl,
     setIsGeneratingJpg,
@@ -90,6 +97,72 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     brandSubtitle: "GOOD MOMENTS",
     enableWatermark: true,
   });
+  const [isEditorCalibrateOpen, setIsEditorCalibrateOpen] = useState(false);
+  const [isEditorTrimming, setIsEditorTrimming] = useState(false);
+
+  const handleAutoTrimInEditor = async () => {
+    if (!frameImageUrl || isEditorTrimming || frameImageUrl.startsWith("/frames/")) return;
+    setIsEditorTrimming(true);
+    try {
+      const { detectFrameSlots } = await import("@/utils/frameDetector");
+      const detection = await detectFrameSlots(
+        frameImageUrl,
+        selectedLayout.frames,
+        selectedLayout.type === "grid",
+        { autoTrim: true, extraZoom: 1.05 }
+      );
+      if (detection.wasTrimmed && detection.trimmedImageUrl) {
+        setFrameImage(
+          detection.trimmedImageUrl,
+          frameMode,
+          detection.slots,
+          detection.imageAspectRatio
+        );
+      }
+    } catch (err) {
+      console.error("Editor auto trim failed:", err);
+    } finally {
+      setIsEditorTrimming(false);
+    }
+  };
+
+  // Directly & automatically make frame FULL in editor on mount without clicking
+  useEffect(() => {
+    let isCancelled = false;
+    async function autoTrimOnMount() {
+      if (!frameImageUrl || frameImageUrl.startsWith("/frames/") || selectedLayout.type === "grid") return;
+      const needsTrim =
+        (customSlots && customSlots[0]?.width < 70) ||
+        (frameAspectRatio && frameAspectRatio > 0.45);
+      if (!needsTrim) return;
+
+      try {
+        const { detectFrameSlots } = await import("@/utils/frameDetector");
+        const detection = await detectFrameSlots(
+          frameImageUrl,
+          selectedLayout.frames,
+          false,
+          { autoTrim: true, extraZoom: 1.05 }
+        );
+        if (!isCancelled && detection.wasTrimmed && detection.trimmedImageUrl) {
+          setFrameImage(
+            detection.trimmedImageUrl,
+            frameMode,
+            detection.slots,
+            detection.imageAspectRatio
+          );
+        }
+      } catch (err) {
+        console.warn("Editor auto-trim on mount failed:", err);
+      }
+    }
+
+    autoTrimOnMount();
+    return () => {
+      isCancelled = true;
+    };
+  }, [frameImageUrl, frameAspectRatio, selectedLayout.frames, selectedLayout.type, frameMode, customSlots, setFrameImage]);
+
 
   useEffect(() => {
     try {
@@ -136,14 +209,17 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
       if (!rightPanelRef.current) return;
 
       const isGrid = selectedLayout.type === "grid";
-      const naturalHeight = isGrid
-        ? 440
-        : selectedLayout.frames === 4
-          ? 980
-          : selectedLayout.frames === 3
-            ? 760
-            : 545;
       const naturalWidth = isGrid ? 380 : 300;
+      const naturalHeight =
+        frameAspectRatio && frameImageUrl
+          ? Math.round(naturalWidth / frameAspectRatio)
+          : isGrid
+            ? 440
+            : selectedLayout.frames === 4
+              ? 980
+              : selectedLayout.frames === 3
+                ? 760
+                : 545;
 
       const isMobile = window.innerWidth < 1024;
       if (isMobile) {
@@ -179,7 +255,8 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
       clearTimeout(timer);
       clearTimeout(timer2);
     };
-  }, [selectedLayout.frames, selectedLayout.type]);
+  }, [selectedLayout.frames, selectedLayout.type, frameAspectRatio, frameImageUrl]);
+
 
   // Clean stickers when layout changes
   useEffect(() => {
@@ -268,19 +345,25 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    // 1. Generate high-res JPG
+    // 1. Generate high-res JPG & transparent PNG
     try {
       if (editorStripRef.current) {
-        const jpgDataUrl = await toJpeg(editorStripRef.current, {
-          quality: 1.0,
-          pixelRatio: 4, // 4x is high-resolution and very crisp
-          backgroundColor: selectedTheme.bg,
-        });
+        const [jpgDataUrl, pngDataUrl] = await Promise.all([
+          toJpeg(editorStripRef.current, {
+            quality: 1.0,
+            pixelRatio: 4, // 4x is high-resolution and very crisp
+            backgroundColor: selectedTheme.bg,
+          }),
+          toPng(editorStripRef.current, {
+            pixelRatio: 4,
+          }),
+        ]);
         finalJpgUrl = jpgDataUrl;
         setExportJpgUrl(jpgDataUrl);
+        setExportPngUrl(pngDataUrl);
       }
     } catch (e) {
-      console.error("JPEG generation failed:", e);
+      console.error("Image generation failed:", e);
     } finally {
       setIsGeneratingJpg(false);
       setPreviewScale(originalScale);
@@ -369,9 +452,90 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     }
   };
 
-  // Render photo grid (supports vertical strip and 2x2 grid)
+  // Render photo grid (supports vertical strip, 2x2 grid, and custom calibrated Canva slots)
   const renderStripPhotoGrid = () => {
     const isGrid = selectedLayout.type === "grid";
+
+    // Custom Calibrated/Detected Slots from Canva frame
+    if (customSlots && customSlots.length > 0 && frameImageUrl) {
+      return (
+        <div className="absolute inset-0 w-full h-full select-none z-10 pointer-events-auto">
+          {customSlots.map((slot, index) => {
+            const photo = capturedPhotos[index];
+            const textCol = selectedTheme.text;
+            const effect = activePhotoEffects[index] || { filter: globalFilter || "none" };
+            const activeFilterDef = FILTERS.find((f) => f.id === effect.filter);
+            const filterClass = activeFilterDef ? activeFilterDef.cssClass : "filter-none";
+            const isFilterActiveTarget =
+              editorTab === "filter" && selectedFilterTarget === index;
+
+            return (
+              <div
+                key={index}
+                onClick={() => {
+                  if (editorTab === "filter") {
+                    setSelectedFilterTarget(index);
+                  }
+                }}
+                className={`absolute overflow-hidden flex items-center justify-center transition-all group ${
+                  isFilterActiveTarget
+                    ? "ring-2 ring-[#F6A04D] ring-offset-2 cursor-pointer scale-[1.01] z-20"
+                    : editorTab === "filter"
+                      ? "cursor-pointer hover:opacity-95"
+                      : ""
+                }`}
+                style={{
+                  left: `${slot.x}%`,
+                  top: `${slot.y}%`,
+                  width: `${slot.width}%`,
+                  height: `${slot.height}%`,
+                  borderRadius: slot.borderRadius ? `${slot.borderRadius}px` : undefined,
+                  backgroundColor: selectedTheme.id === "midnight" ? "#121212" : "#FFFFFF",
+                }}
+              >
+                {photo ? (
+                  <>
+                    <img
+                      src={photo}
+                      alt={`Snap ${index + 1}`}
+                      className={`w-full h-full object-cover object-center transition-all duration-150 ${filterClass}`}
+                    />
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.02] mix-blend-overlay bg-noise" />
+
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          triggerSingleRetake(index);
+                        }}
+                        className="py-1 px-2.5 bg-white text-slate-800 rounded-none font-mono text-[9px] font-bold border border-slate-800 flex items-center gap-1 active:scale-95 shadow cursor-pointer"
+                      >
+                        <RotateCw size={9} />
+                        Retake #{index + 1}
+                      </button>
+                    </div>
+
+                    <span
+                      className="absolute top-2 right-2 text-[8px] font-mono px-1.5 py-0.5 rounded-none border select-none opacity-85 z-20"
+                      style={{
+                        backgroundColor: selectedTheme.bg,
+                        color: selectedTheme.text,
+                        borderColor: selectedTheme.text,
+                      }}
+                    >
+                      #{index + 1}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-mono text-xs opacity-30">Slot #{index + 1}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
     return (
       <div
         className={`w-full flex-1 select-none ${
@@ -380,6 +544,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
             : "flex flex-col gap-[14px] justify-between items-center"
         }`}
       >
+
         {Array.from({ length: selectedLayout.frames }).map((_, index) => {
           const photo = capturedPhotos[index];
           const textCol = selectedTheme.text;
@@ -603,28 +768,177 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                   </div>
 
                   {frameImageUrl ? (
-                    <div className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-300">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-9 border border-slate-300 bg-slate-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                          <img src={frameImageUrl} alt="Frame" className="w-full h-full object-contain" />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-300">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-9 border border-slate-300 bg-slate-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <img src={frameImageUrl} alt="Frame" className="w-full h-full object-contain" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-bold text-emerald-700 block truncate">
+                              ✓ Frame Gambar Terpasang
+                            </span>
+                            <span className="text-[8px] text-slate-500 uppercase">
+                              Mode: {frameMode === "overlay" ? "Overlay" : "Background"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <span className="text-[10px] font-bold text-emerald-700 block truncate">
-                            ✓ Frame Gambar Terpasang
-                          </span>
-                          <span className="text-[8px] text-slate-500 uppercase">
-                            Mode: {frameMode === "overlay" ? "Overlay (Menimpa)" : "Background"}
-                          </span>
+
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {frameImageUrl && selectedLayout.type === "strip" && ((customSlots && customSlots[0]?.width < 70) || (frameAspectRatio && frameAspectRatio > 0.45)) && (
+                            <button
+                              type="button"
+                              onClick={handleAutoTrimInEditor}
+                              disabled={isEditorTrimming}
+                              className="text-[8.5px] px-2 py-1 border border-slate-900 bg-[#FFE66D] hover:bg-amber-300 text-slate-900 font-mono font-bold uppercase cursor-pointer flex items-center gap-1 shadow-xs"
+                              title="Pangkas margin Canva agar frame FULL 100% memenuhi strip"
+                            >
+                              <span>{isEditorTrimming ? "Memangkas..." : "✂️ Full"}</span>
+                            </button>
+                          )}
+                          {customSlots && customSlots.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditorCalibrateOpen(!isEditorCalibrateOpen)}
+                              className={`text-[8.5px] px-2 py-1 border font-mono font-bold uppercase cursor-pointer flex items-center gap-1 transition-colors ${
+                                isEditorCalibrateOpen
+                                  ? "bg-slate-900 text-white border-slate-900"
+                                  : "border-slate-300 bg-white hover:bg-slate-50 text-slate-800"
+                              }`}
+                            >
+                              <Sliders size={10} />
+                              <span>{isEditorCalibrateOpen ? "Tutup" : "Kalibrasi"}</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFrameImage(
+                                frameImageUrl,
+                                frameMode === "overlay" ? "background" : "overlay",
+                                customSlots,
+                                frameAspectRatio
+                              )
+                            }
+                            className="text-[8.5px] px-2 py-1 border border-slate-300 bg-slate-50 hover:bg-slate-100 font-mono font-bold uppercase cursor-pointer flex-shrink-0"
+                          >
+                            {frameMode === "overlay" ? "Ke Bg" : "Ke Overlay"}
+                          </button>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setFrameImage(frameImageUrl, frameMode === "overlay" ? "background" : "overlay")}
-                        className="text-[8.5px] px-2 py-1 border border-slate-300 bg-slate-50 hover:bg-slate-100 font-mono font-bold uppercase cursor-pointer flex-shrink-0"
-                      >
-                        Ganti ke {frameMode === "overlay" ? "Background" : "Overlay"}
-                      </button>
+                      {/* Calibration dropdown in Editor */}
+                      {isEditorCalibrateOpen && customSlots && customSlots.length > 0 && (
+                        <div className="p-2.5 bg-sky-50 border border-sky-300 space-y-2 text-[9.5px]">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-sky-950 uppercase text-[9px]">
+                              📐 Kalibrasi Kotak Foto
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (frameImageUrl) {
+                                  const detection = await detectFrameSlots(
+                                    frameImageUrl,
+                                    selectedLayout.frames,
+                                    selectedLayout.type === "grid"
+                                  );
+                                  setCustomSlots(detection.slots);
+                                }
+                              }}
+                              className="text-[8.5px] text-sky-700 hover:underline font-bold cursor-pointer"
+                            >
+                              Pindai Ulang
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <div className="bg-white p-1.5 border border-slate-200">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="font-bold text-[8.5px] text-slate-700 uppercase">Lebar</span>
+                                <span className="font-mono text-[8px] font-bold">{Math.round(customSlots[0]?.width || 88)}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min={40}
+                                max={98}
+                                value={Math.round(customSlots[0]?.width || 88)}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setCustomSlots(
+                                    customSlots.map((s) => ({
+                                      ...s,
+                                      width: val,
+                                      x: selectedLayout.type === "grid" ? s.x : Math.round(((100 - val) / 2) * 10) / 10,
+                                    }))
+                                  );
+                                }}
+                                className="w-full accent-slate-900 cursor-pointer h-1"
+                              />
+                            </div>
+
+                            <div className="bg-white p-1.5 border border-slate-200">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="font-bold text-[8.5px] text-slate-700 uppercase">Tinggi</span>
+                                <span className="font-mono text-[8px] font-bold">{Math.round(customSlots[0]?.height || 22)}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min={10}
+                                max={50}
+                                value={Math.round(customSlots[0]?.height || 22)}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setCustomSlots(customSlots.map((s) => ({ ...s, height: val })));
+                                }}
+                                className="w-full accent-slate-900 cursor-pointer h-1"
+                              />
+                            </div>
+
+                            <div className="bg-white p-1.5 border border-slate-200">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="font-bold text-[8.5px] text-slate-700 uppercase">Geser X</span>
+                                <span className="font-mono text-[8px] font-bold">{Math.round(customSlots[0]?.x || 6)}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min={0}
+                                max={30}
+                                value={Math.round(customSlots[0]?.x || 6)}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setCustomSlots(customSlots.map((s) => ({ ...s, x: val })));
+                                }}
+                                className="w-full accent-slate-900 cursor-pointer h-1"
+                              />
+                            </div>
+
+                            <div className="bg-white p-1.5 border border-slate-200">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className="font-bold text-[8.5px] text-slate-700 uppercase">Geser Y</span>
+                                <span className="font-mono text-[8px] font-bold">{Math.round(customSlots[0]?.y || 5)}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min={0}
+                                max={30}
+                                value={Math.round(customSlots[0]?.y || 5)}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  const delta = val - (customSlots[0]?.y || 5);
+                                  setCustomSlots(
+                                    customSlots.map((s) => ({
+                                      ...s,
+                                      y: Math.max(0, Math.min(95, Math.round((s.y + delta) * 10) / 10)),
+                                    }))
+                                  );
+                                }}
+                                className="w-full accent-slate-900 cursor-pointer h-1"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -639,9 +953,20 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                             if (e.target.files && e.target.files[0]) {
                               const file = e.target.files[0];
                               const reader = new FileReader();
-                              reader.onload = (ev) => {
+                              reader.onload = async (ev) => {
                                 if (ev.target?.result) {
-                                  setFrameImage(ev.target.result as string, "overlay");
+                                  const dataUrl = ev.target.result as string;
+                                  const detection = await detectFrameSlots(
+                                    dataUrl,
+                                    selectedLayout.frames,
+                                    selectedLayout.type === "grid"
+                                  );
+                                  setFrameImage(
+                                    dataUrl,
+                                    "overlay",
+                                    detection.slots,
+                                    detection.imageAspectRatio
+                                  );
                                 }
                               };
                               reader.readAsDataURL(file);
@@ -657,6 +982,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                       </Link>
                     </div>
                   )}
+
                 </div>
 
                 <div className="flex items-center justify-between font-mono text-[8px] lg:text-[9px] font-bold text-slate-400 uppercase pt-1">
@@ -976,149 +1302,172 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           <h2 className="text-base font-bold text-slate-800 font-mono uppercase tracking-tight">Your Strip</h2>
         </div>
 
+        {isEditorTrimming && (
+          <div className="mb-2 max-w-[320px] bg-[#FFE66D] border border-slate-900 px-3 py-1 text-center shadow-xs select-none">
+            <span className="text-[9.5px] font-mono font-bold text-slate-900">
+              ✂️ Menyesuaikan frame agar langsung FULL...
+            </span>
+          </div>
+        )}
+
         {/* Scaled wrapper box matching exact visual footprint */}
-        <div
-          className="relative select-none animate-in fade-in duration-200 my-auto flex-shrink-0"
-          style={{
-            width: `${(selectedLayout.type === "grid" ? 380 : 300) * previewScale}px`,
-            height: `${
-              (selectedLayout.type === "grid"
+        {(() => {
+          const baseW = selectedLayout.type === "grid" ? 380 : 300;
+          const baseH =
+            frameAspectRatio && frameImageUrl
+              ? Math.round(baseW / frameAspectRatio)
+              : selectedLayout.type === "grid"
                 ? 440
                 : selectedLayout.frames === 4
                   ? 980
                   : selectedLayout.frames === 3
                     ? 760
-                    : 545) * previewScale
-            }px`,
-            transition: "width 0.15s ease-out, height 0.15s ease-out",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: selectedLayout.type === "grid" ? "380px" : "300px",
-              height:
-                selectedLayout.type === "grid"
-                  ? "440px"
-                  : selectedLayout.frames === 4
-                    ? "980px"
-                    : selectedLayout.frames === 3
-                      ? "760px"
-                      : "545px",
-              transform: `scale(${previewScale})`,
-              transformOrigin: "top left",
-              transition: "transform 0.15s ease-out",
-            }}
-          >
+                    : 545;
+
+          return (
             <div
-              ref={editorStripRef}
-            className="p-[14px] shadow-2xl flex flex-col gap-[10px] relative rounded-none transition-all duration-200 overflow-hidden"
-            style={{
-              width: selectedLayout.type === "grid" ? "380px" : "300px",
-              backgroundColor: frameImageUrl && frameMode === "background" ? "transparent" : selectedTheme.bg,
-              color: selectedTheme.text,
-              border: `1.5px solid ${selectedTheme.text}`,
-              height:
-                selectedLayout.type === "grid"
-                  ? "440px"
-                  : selectedLayout.frames === 4
-                    ? "980px"
-                    : selectedLayout.frames === 3
-                      ? "760px"
-                      : "545px",
-              fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-            }}
-          >
-            {/* Custom Background Image (Canva / Photoshop) */}
-            {frameImageUrl && frameMode === "background" && (
-              <img
-                src={frameImageUrl}
-                crossOrigin="anonymous"
-                alt="Frame Background"
-                className="absolute inset-0 w-full h-full object-fill pointer-events-none z-0"
-              />
-            )}
-
-            <div className="relative z-10 w-full flex-1 flex flex-col" ref={dragContainerRef}>
-              {renderStripPhotoGrid()}
-
-              {stickers.map((sticker) => {
-                const stDef = STICKERS.find((s) => s.id === sticker.type);
-                const isSelected = selectedStickerId === sticker.id;
-
-                return (
-                  <div
-                    key={sticker.id}
-                    onPointerDown={(e) => handleStickerPointerDown(e, sticker)}
-                    className={`absolute w-10 h-10 cursor-move group select-none ${
-                      isSelected ? "border border-dashed border-sky-500 z-50 ring-1 ring-sky-500/20" : "z-30"
-                    }`}
-                    style={{
-                      left: `${sticker.x}%`,
-                      top: `${sticker.y}%`,
-                      transform: `translate(-50%, -50%) scale(${sticker.scale}) rotate(${sticker.rotation}deg)`,
-                    }}
-                  >
-                    {stDef?.render(stickerColor)}
-                    {isSelected && (
-                      <button
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => deleteSticker(sticker.id)}
-                        className="absolute -top-3.5 -right-3.5 p-0.5 rounded-none bg-red-500 text-white border border-slate-800 hover:bg-red-600 transition-colors pointer-events-auto shadow-sm cursor-pointer"
-                      >
-                        <X size={9} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Custom Overlay Image (Canva / Photoshop PNG Cutout) */}
-            {frameImageUrl && frameMode === "overlay" && (
-              <img
-                src={frameImageUrl}
-                crossOrigin="anonymous"
-                alt="Frame Overlay"
-                className="absolute inset-0 w-full h-full object-fill pointer-events-none z-20"
-              />
-            )}
-
-            {/* FOOTER AREA */}
-            <div
-              className="flex flex-col items-center justify-center gap-1.5 pt-4 pb-2 mt-auto min-h-[85px] relative z-10 select-none"
-              style={{ boxSizing: "border-box" }}
+              className="relative select-none animate-in fade-in duration-200 my-auto flex-shrink-0"
+              style={{
+                width: `${baseW * previewScale}px`,
+                height: `${baseH * previewScale}px`,
+                transition: "width 0.15s ease-out, height 0.15s ease-out",
+              }}
             >
-              {showWatermark && (
-                <span
-                  className="text-[10px] font-mono tracking-[0.25em] font-extrabold uppercase leading-none text-center"
-                  style={{ color: selectedTheme.text }}
-                >
-                  ⚡ {brandSettings.brandTitle} • {brandSettings.brandSubtitle}
-                </span>
-              )}
-              {caption.trim() !== "" && (
-                <p
-                  className="text-[9px] font-mono tracking-wider opacity-85 uppercase leading-none max-w-[200px] break-words text-center"
-                  style={{ color: selectedTheme.text }}
-                >
-                  {caption}
-                </p>
-              )}
-              <span
-                className="text-[7.5px] font-mono opacity-65 tracking-widest uppercase leading-none text-center"
-                style={{ color: selectedTheme.text }}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: `${baseW}px`,
+                  height: `${baseH}px`,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: "top left",
+                  transition: "transform 0.15s ease-out",
+                }}
               >
-                {new Date().toISOString().split("T")[0].replace(/-/g, ".")}
-              </span>
+                <div
+                  ref={editorStripRef}
+                  className="shadow-2xl flex flex-col relative rounded-none transition-all duration-200 overflow-hidden"
+                  style={{
+                    width: `${baseW}px`,
+                    height: `${baseH}px`,
+                    backgroundColor:
+                      frameImageUrl
+                        ? "transparent"
+                        : selectedTheme.bg,
+                    color: selectedTheme.text,
+                    border: frameImageUrl ? "none" : `1.5px solid ${selectedTheme.text}`,
+                    padding: customSlots && customSlots.length > 0 ? 0 : "14px",
+                    gap: customSlots && customSlots.length > 0 ? 0 : "10px",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                  }}
+                >
+                  {/* Custom Background Image (Canva / Photoshop) */}
+                  {frameImageUrl && frameMode === "background" && (
+                    <img
+                      src={frameImageUrl}
+                      crossOrigin="anonymous"
+                      alt="Frame Background"
+                      className="absolute inset-0 w-full h-full object-fill pointer-events-none z-0"
+                    />
+                  )}
+
+                  <div className="relative z-10 w-full flex-1 flex flex-col" ref={dragContainerRef}>
+                    {renderStripPhotoGrid()}
+
+                    {stickers.map((sticker) => {
+                      const stDef = STICKERS.find((s) => s.id === sticker.type);
+                      const isSelected = selectedStickerId === sticker.id;
+
+                      return (
+                        <div
+                          key={sticker.id}
+                          onPointerDown={(e) => handleStickerPointerDown(e, sticker)}
+                          className={`absolute w-10 h-10 cursor-move group select-none ${
+                            isSelected ? "border border-dashed border-sky-500 z-50 ring-1 ring-sky-500/20" : "z-30"
+                          }`}
+                          style={{
+                            left: `${sticker.x}%`,
+                            top: `${sticker.y}%`,
+                            transform: `translate(-50%, -50%) scale(${sticker.scale}) rotate(${sticker.rotation}deg)`,
+                          }}
+                        >
+                          {stDef?.render(stickerColor)}
+                          {isSelected && (
+                            <button
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={() => deleteSticker(sticker.id)}
+                              className="absolute -top-3.5 -right-3.5 p-0.5 rounded-none bg-red-500 text-white border border-slate-800 hover:bg-red-600 transition-colors pointer-events-auto shadow-sm cursor-pointer"
+                            >
+                              <X size={9} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Overlay Image (Canva / Photoshop PNG Cutout) */}
+                  {frameImageUrl && frameMode === "overlay" && (
+                    <img
+                      src={frameImageUrl}
+                      crossOrigin="anonymous"
+                      alt="Frame Overlay"
+                      className="absolute inset-0 w-full h-full object-fill pointer-events-none z-20"
+                    />
+                  )}
+
+                  {/* FOOTER AREA */}
+                  {(!customSlots || customSlots.length === 0) ? (
+                    <div
+                      className="flex flex-col items-center justify-center gap-1.5 pt-4 pb-2 mt-auto min-h-[85px] relative z-10 select-none"
+                      style={{ boxSizing: "border-box" }}
+                    >
+                      {showWatermark && (
+                        <span
+                          className="text-[10px] font-mono tracking-[0.25em] font-extrabold uppercase leading-none text-center"
+                          style={{ color: selectedTheme.text }}
+                        >
+                          ⚡ {brandSettings.brandTitle} • {brandSettings.brandSubtitle}
+                        </span>
+                      )}
+                      {caption.trim() !== "" && (
+                        <p
+                          className="text-[9px] font-mono tracking-wider opacity-85 uppercase leading-none max-w-[200px] break-words text-center"
+                          style={{ color: selectedTheme.text }}
+                        >
+                          {caption}
+                        </p>
+                      )}
+                      <span
+                        className="text-[7.5px] font-mono opacity-65 tracking-widest uppercase leading-none text-center"
+                        style={{ color: selectedTheme.text }}
+                      >
+                        {new Date().toISOString().split("T")[0].replace(/-/g, ".")}
+                      </span>
+                    </div>
+                  ) : caption.trim() !== "" ? (
+                    <div
+                      className="absolute bottom-2 inset-x-0 flex flex-col items-center justify-center gap-1 pointer-events-none z-30 select-none px-2"
+                      style={{ boxSizing: "border-box" }}
+                    >
+                      <p
+                        className="text-[9px] font-mono tracking-wider opacity-90 uppercase leading-none max-w-[200px] break-words text-center bg-white/80 px-1.5 py-0.5 border border-slate-300"
+                        style={{ color: selectedTheme.text }}
+                      >
+                        {caption}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="absolute inset-0 pointer-events-none opacity-[0.02] mix-blend-overlay bg-noise" />
+                </div>
+              </div>
             </div>
-            <div className="absolute inset-0 pointer-events-none opacity-[0.02] mix-blend-overlay bg-noise" />
-          </div>
-        </div>
-      </div>
+          );
+        })()}
+
     </div>
 
       {/* PRO WATERMARK DEMO MODAL */}

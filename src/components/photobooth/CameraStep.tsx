@@ -20,6 +20,8 @@ export default function CameraStep() {
     setSingleRetakeIndex,
     setActivePhotoEffects,
     setStickers,
+    stickers,
+    frameImageUrl,
     audioMuted,
   } = usePhotoboothStore();
 
@@ -162,9 +164,11 @@ export default function CameraStep() {
     setIsCapturing(false);
     setSingleRetakeIndex(null);
 
-    // Generate random stickers for initial design
-    const randomStickers = generateRandomDoodles(selectedLayout.type);
-    setStickers(randomStickers);
+    // Generate random stickers for initial design only if no custom graphic frame is active and no existing stickers
+    if (!frameImageUrl && (!stickers || stickers.length === 0)) {
+      const randomStickers = generateRandomDoodles(selectedLayout.type);
+      setStickers(randomStickers);
+    }
 
     setStep("editor");
   };
@@ -185,15 +189,26 @@ export default function CameraStep() {
               <p className="font-bold text-white font-mono uppercase text-xs">CAMERA NOT ALLOWED</p>
               <p className="text-[10px] text-zinc-400 max-w-[200px]">Please enable camera access in your browser.</p>
             </div>
-            <button
-              onClick={() => {
-                setCameraAccess(null);
-                startCamera(facingMode);
-              }}
-              className="py-1.5 px-4 bg-white border border-slate-800 rounded-none text-[10px] font-bold text-slate-800 font-mono hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              RETRY
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setCameraAccess(null);
+                  startCamera(facingMode);
+                }}
+                className="py-1.5 px-3 bg-white border border-slate-800 rounded-none text-[10px] font-bold text-slate-800 font-mono hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                RETRY
+              </button>
+              <button
+                onClick={() => {
+                  setSingleRetakeIndex(null);
+                  setStep("layout");
+                }}
+                className="py-1.5 px-3 bg-slate-800 border border-slate-700 rounded-none text-[10px] font-bold text-white font-mono hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                GANTI LAYOUT
+              </button>
+            </div>
           </div>
         ) : (
           <>

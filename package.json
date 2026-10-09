@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "frames:generate": "node scripts/generate-frames.mjs",
+    "frames:verify": "node scripts/verify-frames.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

@@ -34,6 +34,7 @@ export default function ExportStep() {
     selectedTheme,
     caption,
     exportJpgUrl,
+    exportPngUrl,
     cloudImageUrl,
     setCloudImageUrl,
     exportGifUrl,
@@ -47,10 +48,13 @@ export default function ExportStep() {
     setIsGeneratingVideo,
     activePhotoEffects,
     globalFilter,
+    frameImageUrl,
     resetStore,
   } = usePhotoboothStore();
 
-  const [exportFormat, setExportFormat] = useState<"jpg" | "gif" | "mp4">("jpg");
+  const [exportFormat, setExportFormat] = useState<"png" | "jpg" | "gif" | "mp4">(
+    frameImageUrl ? "png" : "jpg"
+  );
   const [gifSpeed, setGifSpeed] = useState<"slow" | "normal" | "fast">("normal");
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
@@ -184,15 +188,29 @@ export default function ExportStep() {
   // Native share with dynamic MP4 / GIF / JPG file attachment
   const handleNativeShare = async () => {
     const targetUrl =
-      exportFormat === "mp4" ? exportVideoUrl : exportFormat === "gif" ? exportGifUrl : exportJpgUrl;
+      exportFormat === "mp4"
+        ? exportVideoUrl
+        : exportFormat === "gif"
+          ? exportGifUrl
+          : exportFormat === "png"
+            ? (exportPngUrl || exportJpgUrl)
+            : exportJpgUrl;
     const filename =
       exportFormat === "mp4"
         ? "posean-reels-story.mp4"
         : exportFormat === "gif"
           ? "posean-loop.gif"
-          : "posean-hd-strip.jpg";
+          : exportFormat === "png"
+            ? "posean-frame-alpha.png"
+            : "posean-hd-strip.jpg";
     const mimeType =
-      exportFormat === "mp4" ? "video/mp4" : exportFormat === "gif" ? "image/gif" : "image/jpeg";
+      exportFormat === "mp4"
+        ? "video/mp4"
+        : exportFormat === "gif"
+          ? "image/gif"
+          : exportFormat === "png"
+            ? "image/png"
+            : "image/jpeg";
 
     if (navigator.share && targetUrl) {
       try {
@@ -295,7 +313,23 @@ export default function ExportStep() {
 
           <div className="flex flex-col gap-2 select-none w-full">
             <span className="text-[9px] font-bold text-slate-400 font-mono tracking-widest uppercase text-left">FORMAT</span>
-            <div className="grid grid-cols-3 gap-2 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+              {/* PNG (ALPHA) OPTION */}
+              <button
+                onClick={() => setExportFormat("png")}
+                className={`flex flex-col items-center justify-center p-2.5 border transition-all cursor-pointer rounded-none text-center ${
+                  exportFormat === "png"
+                    ? "border-slate-900 bg-slate-900 text-white shadow-none"
+                    : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
+                }`}
+              >
+                <Sparkles size={14} className="mb-1 text-emerald-400" />
+                <span className="text-[9px] font-bold font-mono uppercase tracking-wider">
+                  PNG ALPHA
+                </span>
+                <span className="text-[7px] opacity-75 font-mono mt-0.5">Transparan HD</span>
+              </button>
+
               {/* JPG OPTION */}
               <button
                 onClick={() => setExportFormat("jpg")}
@@ -402,7 +436,20 @@ export default function ExportStep() {
           )}
 
           <div className="w-full flex flex-col gap-3">
-            {exportFormat === "jpg" ? (
+            {exportFormat === "png" ? (
+              <button
+                onClick={() =>
+                  handleDownload(
+                    exportPngUrl || exportJpgUrl,
+                    `${selectedLayout.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-transparent.png`
+                  )
+                }
+                disabled={isGeneratingJpg || (!exportPngUrl && !exportJpgUrl)}
+                className="w-full py-3.5 border border-slate-800 bg-[#4ECDC4] text-slate-950 font-mono text-xs font-black uppercase tracking-wider rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center gap-2 hover:brightness-95 disabled:opacity-50 cursor-pointer"
+              >
+                <Download size={14} /> Download PNG (Transparan Alpha HD)
+              </button>
+            ) : exportFormat === "jpg" ? (
               <button
                 onClick={() =>
                   handleDownload(
@@ -504,17 +551,17 @@ export default function ExportStep() {
           )}
 
           <div className="w-full max-w-[336px] lg:max-w-none lg:w-auto border border-slate-300 bg-slate-100 rounded-none overflow-hidden shadow-xl p-2.5 relative flex flex-col items-center justify-center lg:max-h-[calc(100vh-260px)]">
-            {exportFormat === "jpg" ? (
+            {exportFormat === "png" || exportFormat === "jpg" ? (
               <div className="w-full lg:w-auto lg:h-auto flex items-center justify-center">
                 {isGeneratingJpg ? (
                   <div className="w-full lg:w-[250px] min-h-[350px] flex flex-col items-center justify-center gap-2 bg-white border border-slate-200 text-zinc-400 font-mono text-[9px] text-center p-1 select-none">
                     <RefreshCw size={20} className="animate-spin text-slate-800" />
-                    <span>GENERATING JPG...</span>
+                    <span>GENERATING {exportFormat.toUpperCase()}...</span>
                   </div>
                 ) : (
-                  exportJpgUrl && (
+                  (exportPngUrl || exportJpgUrl) && (
                     <img
-                      src={exportJpgUrl}
+                      src={exportFormat === "png" ? (exportPngUrl || exportJpgUrl!) : exportJpgUrl!}
                       alt="Final Strip"
                       className="w-full h-auto lg:w-auto lg:h-auto lg:max-h-[calc(100vh-285px)] block rounded-none border border-slate-200 animate-in fade-in duration-200 object-contain"
                     />

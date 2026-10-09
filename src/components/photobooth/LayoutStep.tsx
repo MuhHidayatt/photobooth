@@ -19,6 +19,7 @@ import {
 import { CommunityFrameTemplate } from "@/types/template";
 import { STICKERS } from "@/components/StickerAssets";
 import CreateTemplateModal from "@/components/templates/CreateTemplateModal";
+import { FRAME_PRESETS, FramePreset } from "@/data/framePresets";
 
 export default function LayoutStep() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function LayoutStep() {
   } = usePhotoboothStore();
   const { user, profile, setIsPro } = useAuthStore();
 
-  const [activeTab, setActiveTab] = useState<"standard" | "community">("standard");
+  const [activeTab, setActiveTab] = useState<"standard" | "themes" | "community">("standard");
   const [allLayouts, setAllLayouts] = useState<LayoutOption[]>(LAYOUTS);
   const [communityTemplates, setCommunityTemplates] = useState<CommunityFrameTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +115,32 @@ export default function LayoutStep() {
     setStep("camera");
   };
 
+  // Apply one of the 8 built-in themed frames (transparent PNG overlay + explicit grid slots)
+  const handleSelectFramePreset = (preset: FramePreset) => {
+    setSelectedLayout({
+      id: `preset_${preset.id}`,
+      name: preset.name,
+      frames: preset.total,
+      previewClass: preset.type === "grid" ? "grid-cols-2" : `grid-rows-${preset.total}`,
+      type: preset.type,
+      badge: preset.badge,
+    });
+    setSelectedTheme({
+      id: `preset_${preset.id}`,
+      name: preset.name,
+      bg: preset.bg_color,
+      text: preset.text_color,
+      border: `border border-[${preset.text_color}]`,
+      accent: preset.bg_color,
+      uiBg: "#FFFFFF",
+      uiActiveBg: preset.bg_color,
+    });
+    setCaption("");
+    setStickers([]);
+    setFrameImage(preset.image, "overlay", preset.slots, preset.aspectRatio);
+    setStep("camera");
+  };
+
   // Handle selection of community template
   const handleSelectCommunityTemplate = async (template: CommunityFrameTemplate) => {
     // If user is not logged in, direct to login page
@@ -164,7 +191,39 @@ export default function LayoutStep() {
     }
 
     // 6. Custom Frame Image (Canva / Photoshop overlay or background)
-    setFrameImage(template.image_url || null, template.frame_mode || "overlay");
+    let finalImageUrl = template.image_url || null;
+    let finalSlots = template.custom_slots || null;
+    let finalAspectRatio = template.frame_aspect_ratio || null;
+
+    if (
+      template.image_url &&
+      template.type !== "grid" &&
+      !template.image_url.startsWith("/frames/") &&
+      ((template.custom_slots && template.custom_slots[0]?.width < 70) ||
+        (template.frame_aspect_ratio && template.frame_aspect_ratio > 0.45))
+    ) {
+      try {
+        const { detectFrameSlots } = await import("@/utils/frameDetector");
+        const detection = await detectFrameSlots(template.image_url, template.frames, false, {
+          autoTrim: true,
+          extraZoom: 1.05,
+        });
+        if (detection.wasTrimmed && detection.trimmedImageUrl) {
+          finalImageUrl = detection.trimmedImageUrl;
+          finalSlots = detection.slots;
+          finalAspectRatio = detection.imageAspectRatio;
+        }
+      } catch (e) {
+        console.warn("Auto-trim in LayoutStep failed:", e);
+      }
+    }
+
+    setFrameImage(
+      finalImageUrl,
+      template.frame_mode || "overlay",
+      finalSlots,
+      finalAspectRatio
+    );
 
     // 7. Increment usage
     await incrementTemplateUsage(template.id);
@@ -206,7 +265,7 @@ export default function LayoutStep() {
       </div>
 
       {/* TAB SELECTOR: STANDAR VS KOMUNITAS */}
-      <div className="w-full max-w-sm sm:max-w-md flex items-center border border-slate-900 bg-white p-1 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-mono text-[11px] sm:text-xs select-none">
+      <div className="w-full max-w-sm sm:max-w-xl flex items-center border border-slate-900 bg-white p-1 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-mono text-[10px] sm:text-xs select-none">
         <button
           onClick={() => setActiveTab("standard")}
           className={`flex-1 py-2 sm:py-2.5 px-2 text-center font-bold uppercase transition-all cursor-pointer ${
@@ -218,6 +277,17 @@ export default function LayoutStep() {
           Layout Standar
         </button>
         <button
+          onClick={() => setActiveTab("themes")}
+          data-testid="tab-frame-themes"
+          className={`flex-1 py-2 sm:py-2.5 px-2 text-center font-bold uppercase transition-all cursor-pointer ${
+            activeTab === "themes"
+              ? "bg-slate-900 text-white"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          Tema Frame ({FRAME_PRESETS.length})
+        </button>
+        <button
           onClick={() => setActiveTab("community")}
           className={`flex-1 py-2 sm:py-2.5 px-2 text-center font-bold uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
             activeTab === "community"
@@ -226,9 +296,46 @@ export default function LayoutStep() {
           }`}
         >
           <Sparkles size={13} className="text-amber-500" />
-          <span>Frame Komunitas ({communityTemplates.length})</span>
+          <span>Komunitas ({communityTemplates.length})</span>
         </button>
       </div>
+
+      {/* TAB: THEMED FRAME PRESETS (8 transparent PNG frames) */}
+      {activeTab === "themes" && (
+        <div className="w-full max-w-5xl flex flex-col items-center gap-4 select-none">
+          <p className="text-[10px] sm:text-[11px] text-slate-500 font-mono text-center">
+            Pilih tema frame — jumlah foto &amp; susunan slot sudah diatur otomatis:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 w-full">
+            {FRAME_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                data-testid={`frame-preset-${preset.id}`}
+                onClick={() => handleSelectFramePreset(preset)}
+                className="bg-white border border-slate-800 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[5px_5px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 p-3 flex flex-col items-center gap-2.5 text-left transition-all cursor-pointer group"
+              >
+                <div className="w-full h-48 sm:h-56 flex items-center justify-center bg-gradient-to-br from-sky-200 via-rose-100 to-amber-100 border border-slate-200 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={preset.image}
+                    alt={`Frame ${preset.name}`}
+                    loading="lazy"
+                    className="max-h-full max-w-full object-contain drop-shadow-md transition-transform group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="w-full border-t border-slate-100 pt-2 flex flex-col gap-0.5">
+                  <span className="text-[11px] font-bold text-slate-900 font-mono truncate block uppercase">
+                    {preset.name}
+                  </span>
+                  <span className="text-[9px] font-mono text-slate-500">
+                    {preset.cols} kolom × {preset.rows} baris · {preset.total} foto
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: STANDARD & CMS LAYOUTS */}
       {activeTab === "standard" && (

@@ -1,11 +1,37 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { CommunityFrameTemplate } from "@/types/template";
 import { ActiveSticker } from "@/store/usePhotoboothStore";
+import { FRAME_PRESETS } from "@/data/framePresets";
 
 const STORAGE_KEY = "posean_community_templates";
 
+// 8 Official Posean Themed Frame Presets
+export const OFFICIAL_FRAME_TEMPLATES: CommunityFrameTemplate[] = FRAME_PRESETS.map((p, idx) => ({
+  id: `preset-${p.id}`,
+  creator_name: "Posean Official",
+  creator_avatar: "/logo.png",
+  name: p.name,
+  description: `${p.description} (${p.cols} kolom × ${p.rows} baris · ${p.total} foto)`,
+  type: p.type,
+  frames: p.total,
+  aspect_ratio: p.cols > 1 ? "1/1" : "4/3",
+  bg_color: p.bg_color,
+  text_color: p.text_color,
+  caption: p.name === "Birthday" ? "Happy Birthday" : p.name.toUpperCase(),
+  default_filter: "none",
+  stickers: [],
+  image_url: p.image,
+  frame_mode: "overlay",
+  custom_slots: p.slots,
+  frame_aspect_ratio: p.aspectRatio,
+  is_public: true,
+  uses_count: 240 + idx * 15,
+  created_at: new Date(Date.now() - (7 + idx) * 86400000).toISOString(),
+}));
+
 // Default starter templates for immediate rich experience
 export const STARTER_TEMPLATES: CommunityFrameTemplate[] = [
+  ...OFFICIAL_FRAME_TEMPLATES,
   {
     id: "tpl-starter-1",
     creator_name: "Aura Studio",
@@ -143,32 +169,83 @@ export async function fetchCommunityTemplates(): Promise<CommunityFrameTemplate[
       
       // Add server templates
       data.forEach((item: any) => {
+        if (item.name === "Birthday Test") return;
+
+        let imageUrl = item.image_url;
+        let frameMode = item.frame_mode || "overlay";
+        let customSlots = Array.isArray(item.custom_slots) ? item.custom_slots : undefined;
+        let frameAspectRatio = typeof item.frame_aspect_ratio === "number" ? item.frame_aspect_ratio : undefined;
+
+        let cleanStickers = Array.isArray(item.stickers) ? item.stickers : [];
+        const metaSticker = cleanStickers.find((s: any) => s.type === "__frame_meta__");
+        if (metaSticker) {
+          imageUrl = imageUrl || metaSticker.image_url;
+          frameMode = metaSticker.frame_mode || frameMode;
+          customSlots = customSlots || metaSticker.custom_slots;
+          frameAspectRatio = frameAspectRatio || metaSticker.frame_aspect_ratio;
+          cleanStickers = cleanStickers.filter((s: any) => s.type !== "__frame_meta__");
+        }
+
+        const matchedPreset = FRAME_PRESETS.find(
+          (p) =>
+            p.image === imageUrl ||
+            p.name.toLowerCase() === item.name.toLowerCase() ||
+            p.id === item.name.toLowerCase().replace(/\s+/g, "-")
+        );
+        if (matchedPreset) {
+          imageUrl = imageUrl || matchedPreset.image;
+          customSlots = customSlots || matchedPreset.slots;
+          frameAspectRatio = frameAspectRatio || matchedPreset.aspectRatio;
+          if (item.creator_name === "Anonymous") {
+            item.creator_name = "Posean Official";
+          }
+        }
+
         mergedMap.set(item.id, {
           id: item.id,
           user_id: item.user_id,
           creator_name: item.creator_name || "Creator",
-          creator_avatar: item.creator_avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${item.creator_name || 'user'}`,
+          creator_avatar:
+            item.creator_avatar ||
+            (item.creator_name === "Posean Official"
+              ? "/logo.png"
+              : `https://api.dicebear.com/7.x/pixel-art/svg?seed=${item.creator_name || "user"}`),
           name: item.name,
-          description: item.description || "",
-          type: item.type || "strip",
-          frames: item.frames || 4,
+          description: item.description || (matchedPreset ? `${matchedPreset.description} (${matchedPreset.cols} kolom × ${matchedPreset.rows} baris · ${matchedPreset.total} foto)` : ""),
+          type: item.type || (matchedPreset?.type || "strip"),
+          frames: item.frames || (matchedPreset?.total || 4),
           aspect_ratio: item.aspect_ratio || "4/3",
-          bg_color: item.bg_color || "#FFFFFF",
-          text_color: item.text_color || "#1E293B",
+          bg_color: item.bg_color || (matchedPreset?.bg_color || "#FFFFFF"),
+          text_color: item.text_color || (matchedPreset?.text_color || "#1E293B"),
           caption: item.caption || "",
           default_filter: item.default_filter || "none",
-          stickers: Array.isArray(item.stickers) ? item.stickers : [],
-          image_url: item.image_url,
-          frame_mode: item.frame_mode || "overlay",
+          stickers: cleanStickers,
+          image_url: imageUrl,
+          frame_mode: frameMode,
+          custom_slots: customSlots,
+          frame_aspect_ratio: frameAspectRatio,
           is_public: item.is_public ?? true,
           uses_count: item.uses_count || 0,
           created_at: item.created_at || new Date().toISOString(),
         });
       });
 
+      // Ensure all official presets are present
+      OFFICIAL_FRAME_TEMPLATES.forEach((official) => {
+        const alreadyExists = Array.from(mergedMap.values()).some(
+          (m) => m.name.toLowerCase() === official.name.toLowerCase()
+        );
+        if (!alreadyExists) {
+          mergedMap.set(official.id, official);
+        }
+      });
+
       // Merge local starters if not already present
       localList.forEach((local) => {
-        if (!mergedMap.has(local.id)) {
+        const alreadyExists = Array.from(mergedMap.values()).some(
+          (m) => m.name.toLowerCase() === local.name.toLowerCase()
+        );
+        if (!alreadyExists && !mergedMap.has(local.id)) {
           mergedMap.set(local.id, local);
         }
       });
@@ -201,6 +278,8 @@ export async function createCommunityTemplate(params: {
   stickers: ActiveSticker[];
   image_url?: string;
   frame_mode?: "overlay" | "background";
+  custom_slots?: import("@/types/template").CustomSlot[];
+  frame_aspect_ratio?: number;
 }): Promise<CommunityFrameTemplate> {
   const newTemplate: CommunityFrameTemplate = {
     id: `tpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -221,6 +300,8 @@ export async function createCommunityTemplate(params: {
     stickers: params.stickers || [],
     image_url: params.image_url,
     frame_mode: params.frame_mode || (params.image_url ? "overlay" : undefined),
+    custom_slots: params.custom_slots,
+    frame_aspect_ratio: params.frame_aspect_ratio,
     is_public: true,
     uses_count: 0,
     created_at: new Date().toISOString(),
@@ -252,15 +333,36 @@ export async function createCommunityTemplate(params: {
         creator_avatar: newTemplate.creator_avatar,
       };
 
+      if (newTemplate.custom_slots) {
+        payload.custom_slots = newTemplate.custom_slots;
+      }
+      if (typeof newTemplate.frame_aspect_ratio === "number") {
+        payload.frame_aspect_ratio = newTemplate.frame_aspect_ratio;
+      }
+
       if (params.user_id) {
         payload.user_id = params.user_id;
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("frame_templates")
         .insert([payload])
         .select()
         .single();
+
+      // If error might be due to custom_slots or frame_aspect_ratio column missing in remote DB, retry without them
+      if (error && (error.message?.includes("column") || error.code === "42703")) {
+        console.warn("Supabase missing optional columns, retrying insert with standard columns...");
+        delete payload.custom_slots;
+        delete payload.frame_aspect_ratio;
+        const retryResult = await supabase
+          .from("frame_templates")
+          .insert([payload])
+          .select()
+          .single();
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (!error && data) {
         newTemplate.id = data.id;
@@ -278,6 +380,7 @@ export async function createCommunityTemplate(params: {
   }
 
   return newTemplate;
+
 }
 
 // Increment template uses count
@@ -318,4 +421,56 @@ export async function deleteCommunityTemplate(templateId: string): Promise<void>
       console.error("Failed to delete template from Supabase:", err);
     }
   }
+}
+
+// Update an existing template (e.g. after auto-trimming or editing)
+export async function updateCommunityTemplate(
+  updatedTemplate: CommunityFrameTemplate
+): Promise<CommunityFrameTemplate> {
+  const current = getLocalTemplates();
+  const index = current.findIndex((t) => t.id === updatedTemplate.id);
+  if (index !== -1) {
+    current[index] = { ...current[index], ...updatedTemplate };
+  } else {
+    current.unshift(updatedTemplate);
+  }
+  saveLocalTemplates(current);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const payload: any = {
+        name: updatedTemplate.name,
+        description: updatedTemplate.description,
+        type: updatedTemplate.type,
+        frames: updatedTemplate.frames,
+        bg_color: updatedTemplate.bg_color,
+        text_color: updatedTemplate.text_color,
+        caption: updatedTemplate.caption,
+        default_filter: updatedTemplate.default_filter,
+        stickers: updatedTemplate.stickers,
+        image_url: updatedTemplate.image_url,
+        frame_mode: updatedTemplate.frame_mode,
+        custom_slots: updatedTemplate.custom_slots,
+        frame_aspect_ratio: updatedTemplate.frame_aspect_ratio,
+      };
+
+      const { error } = await supabase
+        .from("frame_templates")
+        .update(payload)
+        .eq("id", updatedTemplate.id);
+
+      if (error && (error.message?.includes("column") || error.code === "42703")) {
+        delete payload.custom_slots;
+        delete payload.frame_aspect_ratio;
+        await supabase
+          .from("frame_templates")
+          .update(payload)
+          .eq("id", updatedTemplate.id);
+      }
+    } catch (err) {
+      console.warn("Failed to update template in Supabase:", err);
+    }
+  }
+
+  return updatedTemplate;
 }

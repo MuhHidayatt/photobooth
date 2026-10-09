@@ -215,6 +215,8 @@ create table if not exists public.frame_templates (
 -- Migration columns if table already existed
 alter table public.frame_templates add column if not exists image_url text;
 alter table public.frame_templates add column if not exists frame_mode text default 'overlay';
+alter table public.frame_templates add column if not exists custom_slots jsonb;
+alter table public.frame_templates add column if not exists frame_aspect_ratio numeric;
 
 alter table public.frame_templates enable row level security;
 

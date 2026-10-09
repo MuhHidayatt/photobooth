@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { audio } from "@/utils/audio";
+import { CustomSlot } from "@/types/template";
 
 export type Step = "landing" | "layout" | "camera" | "editor" | "export";
 
@@ -242,11 +243,22 @@ interface PhotoboothState {
   // Custom Frame Image (Canva / Photoshop overlay or background)
   frameImageUrl: string | null;
   frameMode: "overlay" | "background";
-  setFrameImage: (url: string | null, mode?: "overlay" | "background") => void;
+  customSlots: CustomSlot[] | null;
+  frameAspectRatio: number | null;
+  setFrameImage: (
+    url: string | null,
+    mode?: "overlay" | "background",
+    slots?: CustomSlot[] | null,
+    aspectRatio?: number | null
+  ) => void;
+  setCustomSlots: (slots: CustomSlot[] | null) => void;
+  setFrameAspectRatio: (ratio: number | null) => void;
 
   // Exported Caches
   exportJpgUrl: string | null;
   setExportJpgUrl: (url: string | null) => void;
+  exportPngUrl: string | null;
+  setExportPngUrl: (url: string | null) => void;
   exportGifUrl: string | null;
   setExportGifUrl: (url: string | null) => void;
   exportVideoUrl: string | null;
@@ -399,11 +411,18 @@ export const usePhotoboothStore = create<PhotoboothState>()(
   // Custom Frame Image
   frameImageUrl: null,
   frameMode: "overlay",
-  setFrameImage: (frameImageUrl, frameMode = "overlay") => set({ frameImageUrl, frameMode }),
+  customSlots: null,
+  frameAspectRatio: null,
+  setFrameImage: (frameImageUrl, frameMode = "overlay", customSlots = null, frameAspectRatio = null) =>
+    set({ frameImageUrl, frameMode, customSlots, frameAspectRatio }),
+  setCustomSlots: (customSlots) => set({ customSlots }),
+  setFrameAspectRatio: (frameAspectRatio) => set({ frameAspectRatio }),
 
   // Exported Caches
   exportJpgUrl: null,
   setExportJpgUrl: (exportJpgUrl) => set({ exportJpgUrl }),
+  exportPngUrl: null,
+  setExportPngUrl: (exportPngUrl) => set({ exportPngUrl }),
   exportGifUrl: null,
   setExportGifUrl: (exportGifUrl) => set({ exportGifUrl }),
   exportVideoUrl: null,
@@ -475,9 +494,12 @@ export const usePhotoboothStore = create<PhotoboothState>()(
       caption: "",
       frameImageUrl: null,
       frameMode: "overlay",
+      customSlots: null,
+      frameAspectRatio: null,
       showWatermark: true,
       cloudImageUrl: null,
       exportJpgUrl: null,
+      exportPngUrl: null,
       exportGifUrl: null,
       exportVideoUrl: null,
       isGeneratingJpg: false,
@@ -501,9 +523,12 @@ export const usePhotoboothStore = create<PhotoboothState>()(
         caption: state.caption,
         frameImageUrl: state.frameImageUrl,
         frameMode: state.frameMode,
+        customSlots: state.customSlots,
+        frameAspectRatio: state.frameAspectRatio,
         showWatermark: state.showWatermark,
         cloudImageUrl: state.cloudImageUrl,
         exportJpgUrl: state.exportJpgUrl,
+        exportPngUrl: state.exportPngUrl,
         exportGifUrl: state.exportGifUrl,
         exportVideoUrl: state.exportVideoUrl,
         audioMuted: state.audioMuted,
@@ -513,3 +538,4 @@ export const usePhotoboothStore = create<PhotoboothState>()(
     }
   )
 );
+

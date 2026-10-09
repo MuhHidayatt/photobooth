@@ -124,19 +124,13 @@ export default function Header() {
             )}
 
             {/* Frame shortcut */}
-            <button
-              onClick={() => {
-                if (!user) {
-                  router.push("/login?redirect=/frames");
-                } else {
-                  router.push("/frames");
-                }
-              }}
+            <Link
+              href="/frames"
               className="hidden sm:flex items-center gap-1.5 px-3 py-2 border border-slate-800 bg-white hover:bg-slate-50 text-slate-800 font-mono text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer"
             >
               <Sparkles size={13} className="text-[#F6A04D]" />
               <span>Frames</span>
-            </button>
+            </Link>
 
             {/* Start Photobooth shortcut */}
             <button
