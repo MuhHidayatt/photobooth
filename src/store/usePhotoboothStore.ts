@@ -275,6 +275,18 @@ interface PhotoboothState {
   showWatermark: boolean;
   setShowWatermark: (val: boolean) => void;
 
+  // Polaroid Vintage Date Stamp
+  dateStampEnabled: boolean;
+  setDateStampEnabled: (enabled: boolean) => void;
+  dateStampColor: string;
+  setDateStampColor: (color: string) => void;
+  dateStampFormat: "YY MM DD" | "DD/MM/YYYY" | "MMM DD 'YY";
+  setDateStampFormat: (format: "YY MM DD" | "DD/MM/YYYY" | "MMM DD 'YY") => void;
+  dateStampIncludeTime: boolean;
+  setDateStampIncludeTime: (val: boolean) => void;
+  dateStampPosition: "each_photo" | "footer";
+  setDateStampPosition: (pos: "each_photo" | "footer") => void;
+
   // Cloud & Share Storage
   cloudImageUrl: string | null;
   setCloudImageUrl: (url: string | null) => void;
@@ -439,6 +451,18 @@ export const usePhotoboothStore = create<PhotoboothState>()(
   showWatermark: true,
   setShowWatermark: (showWatermark) => set({ showWatermark }),
 
+  // Polaroid Vintage Date Stamp
+  dateStampEnabled: false,
+  setDateStampEnabled: (dateStampEnabled) => set({ dateStampEnabled }),
+  dateStampColor: "#FF9500",
+  setDateStampColor: (dateStampColor) => set({ dateStampColor }),
+  dateStampFormat: "YY MM DD",
+  setDateStampFormat: (dateStampFormat) => set({ dateStampFormat }),
+  dateStampIncludeTime: false,
+  setDateStampIncludeTime: (dateStampIncludeTime) => set({ dateStampIncludeTime }),
+  dateStampPosition: "each_photo",
+  setDateStampPosition: (dateStampPosition) => set({ dateStampPosition }),
+
   // Cloud & Share Storage
   cloudImageUrl: null,
   setCloudImageUrl: (cloudImageUrl) => set({ cloudImageUrl }),
@@ -497,6 +521,11 @@ export const usePhotoboothStore = create<PhotoboothState>()(
       customSlots: null,
       frameAspectRatio: null,
       showWatermark: true,
+      dateStampEnabled: false,
+      dateStampColor: "#FF9500",
+      dateStampFormat: "YY MM DD",
+      dateStampIncludeTime: false,
+      dateStampPosition: "each_photo",
       cloudImageUrl: null,
       exportJpgUrl: null,
       exportPngUrl: null,
@@ -526,6 +555,11 @@ export const usePhotoboothStore = create<PhotoboothState>()(
         customSlots: state.customSlots,
         frameAspectRatio: state.frameAspectRatio,
         showWatermark: state.showWatermark,
+        dateStampEnabled: state.dateStampEnabled,
+        dateStampColor: state.dateStampColor,
+        dateStampFormat: state.dateStampFormat,
+        dateStampIncludeTime: state.dateStampIncludeTime,
+        dateStampPosition: state.dateStampPosition,
         cloudImageUrl: state.cloudImageUrl,
         exportJpgUrl: state.exportJpgUrl,
         exportPngUrl: state.exportPngUrl,

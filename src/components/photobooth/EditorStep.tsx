@@ -19,6 +19,8 @@ import {
   Sliders,
   Crown,
   Upload,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { STICKERS } from "@/components/StickerAssets";
 import {
@@ -28,7 +30,11 @@ import {
   ActiveSticker,
 } from "@/store/usePhotoboothStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { generateRandomDoodles, getFilteredPhotoFrames } from "@/utils/photoboothHelpers";
+import {
+  generateRandomDoodles,
+  getFilteredPhotoFrames,
+  formatRetroDateStamp,
+} from "@/utils/photoboothHelpers";
 import { detectFrameSlots } from "@/utils/frameDetector";
 import CreateTemplateModal from "@/components/templates/CreateTemplateModal";
 
@@ -63,7 +69,16 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setCustomSlots,
     showWatermark,
     setShowWatermark,
-
+    dateStampEnabled,
+    setDateStampEnabled,
+    dateStampColor,
+    setDateStampColor,
+    dateStampFormat,
+    setDateStampFormat,
+    dateStampIncludeTime,
+    setDateStampIncludeTime,
+    dateStampPosition,
+    setDateStampPosition,
 
     stickers,
     setStickers,
@@ -82,6 +97,12 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setIsGeneratingGif,
     resetStore,
   } = usePhotoboothStore();
+
+  const formattedDateStamp = formatRetroDateStamp(
+    new Date(),
+    dateStampFormat,
+    dateStampIncludeTime
+  );
 
   const [editorTab, setEditorTab] = useState<"theme" | "filter" | "sticker" | "caption">("theme");
   const [previewScale, setPreviewScale] = useState(1);
@@ -525,6 +546,19 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                     >
                       #{index + 1}
                     </span>
+
+                    {/* Glowing Vintage Polaroid / Digicam Date Stamp */}
+                    {dateStampEnabled && dateStampPosition === "each_photo" && (
+                      <span
+                        className="absolute bottom-1.5 right-2 font-mono font-black tracking-widest text-[8.5px] select-none pointer-events-none z-20"
+                        style={{
+                          color: dateStampColor,
+                          textShadow: `0 0 3px ${dateStampColor}, 0 0 6px ${dateStampColor}90, 0 1px 2px rgba(0,0,0,0.85)`,
+                        }}
+                      >
+                        {formattedDateStamp}
+                      </span>
+                    )}
                   </>
                 ) : (
                   <span className="font-mono text-xs opacity-30">Slot #{index + 1}</span>
@@ -621,6 +655,19 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                     >
                       <Sparkles size={8} className="text-[#FFE66D]" />
                       <span>{activeFilterDef?.name || "Filtered"}</span>
+                    </span>
+                  )}
+
+                  {/* Glowing Vintage Polaroid / Digicam Date Stamp */}
+                  {dateStampEnabled && dateStampPosition === "each_photo" && (
+                    <span
+                      className="absolute bottom-2 right-2 font-mono font-black tracking-widest text-[8.5px] select-none pointer-events-none z-20"
+                      style={{
+                        color: dateStampColor,
+                        textShadow: `0 0 3px ${dateStampColor}, 0 0 6px ${dateStampColor}90, 0 1px 2px rgba(0,0,0,0.85)`,
+                      }}
+                    >
+                      {formattedDateStamp}
                     </span>
                   )}
                 </>
@@ -1198,6 +1245,161 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                   </div>
                 </div>
 
+                {/* POLAROID & Y2K VINTAGE DATE STAMP SECTION */}
+                <div className="border-t border-slate-200 pt-3 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-mono text-[8px] lg:text-[10px] font-bold text-slate-800 uppercase">
+                      <Clock size={12} className="text-amber-500" />
+                      <span>Polaroid & Y2K Date Stamp</span>
+                    </div>
+                    <span className="text-[7.5px] font-mono font-bold uppercase px-1.5 py-0.5 bg-[#FFE66D] text-slate-900 border border-slate-800">
+                      VINTAGE
+                    </span>
+                  </div>
+
+                  <p className="text-[8.5px] font-mono text-slate-400 leading-tight">
+                    Cetak tanggal retro khas kamera digital 90s/2000s di atas foto Anda.
+                  </p>
+
+                  {/* Toggle Date Stamp */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDateStampEnabled(!dateStampEnabled)}
+                      className={`py-2 px-2.5 font-mono text-[9px] font-bold uppercase border transition-all cursor-pointer text-center ${
+                        dateStampEnabled
+                          ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                      }`}
+                    >
+                      {dateStampEnabled ? "✓ Date Stamp Aktif" : "Mati (Tanpa Tanggal)"}
+                    </button>
+
+                    {/* Position Selector */}
+                    {dateStampEnabled ? (
+                      <div className="grid grid-cols-2 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setDateStampPosition("each_photo")}
+                          className={`py-1 px-1.5 font-mono text-[8px] font-bold uppercase border transition-all cursor-pointer text-center ${
+                            dateStampPosition === "each_photo"
+                              ? "bg-[#FFE66D] text-slate-900 border-slate-800"
+                              : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100"
+                          }`}
+                        >
+                          Tiap Foto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDateStampPosition("footer")}
+                          className={`py-1 px-1.5 font-mono text-[8px] font-bold uppercase border transition-all cursor-pointer text-center ${
+                            dateStampPosition === "footer"
+                              ? "bg-[#FFE66D] text-slate-900 border-slate-800"
+                              : "bg-white text-slate-600 border-slate-300 hover:bg-slate-100"
+                          }`}
+                        >
+                          Footer
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center font-mono text-[8px] text-slate-400 italic">
+                        Klik untuk aktifkan
+                      </div>
+                    )}
+                  </div>
+
+                  {dateStampEnabled && (
+                    <div className="flex flex-col gap-2.5 p-2.5 bg-slate-100/70 border border-slate-200 mt-0.5 animate-in fade-in duration-150">
+                      {/* Format selector */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[7.5px] font-mono font-bold text-slate-500 uppercase">
+                          Format Teks Tanggal:
+                        </span>
+                        <div className="grid grid-cols-3 gap-1">
+                          {(["YY MM DD", "DD/MM/YYYY", "MMM DD 'YY"] as const).map((fmt) => (
+                            <button
+                              key={fmt}
+                              type="button"
+                              onClick={() => setDateStampFormat(fmt)}
+                              className={`py-1 px-1 text-[8px] font-mono font-bold border transition-all cursor-pointer text-center ${
+                                dateStampFormat === fmt
+                                  ? "bg-slate-900 text-white border-slate-900"
+                                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                              }`}
+                            >
+                              {fmt === "YY MM DD" ? "'26 10 10" : fmt === "DD/MM/YYYY" ? "10.10.2026" : "OCT 10 '26"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Color Glow Selector */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[7.5px] font-mono font-bold text-slate-500 uppercase">
+                          Warna Lampu Digital:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {[
+                            { color: "#FF9500", name: "Amber 90s" },
+                            { color: "#FFE66D", name: "Yellow" },
+                            { color: "#39FF14", name: "Neon Green" },
+                            { color: "#FF3B30", name: "Cyber Red" },
+                            { color: "#FFFFFF", name: "White" },
+                          ].map((item) => (
+                            <button
+                              key={item.color}
+                              type="button"
+                              onClick={() => setDateStampColor(item.color)}
+                              className={`w-5 h-5 rounded-none border-2 transition-transform cursor-pointer ${
+                                dateStampColor === item.color
+                                  ? "border-slate-900 scale-110 shadow-sm ring-1 ring-slate-900"
+                                  : "border-slate-300 hover:scale-105"
+                              }`}
+                              style={{ backgroundColor: item.color }}
+                              title={item.name}
+                            />
+                          ))}
+                          <span className="text-[8px] font-mono text-slate-500 ml-1">
+                            {dateStampColor === "#FF9500" ? "Amber 90s" : dateStampColor === "#FFE66D" ? "Yellow" : dateStampColor === "#39FF14" ? "Neon Green" : dateStampColor === "#FF3B30" ? "Cyber Red" : "White"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Include Time Toggle */}
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                        <span className="text-[8px] font-mono text-slate-600 font-semibold">
+                          + Tampilkan Jam Menit ({new Date().getHours()}:{String(new Date().getMinutes()).padStart(2, "0")})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setDateStampIncludeTime(!dateStampIncludeTime)}
+                          className={`px-2 py-0.5 text-[8px] font-mono font-bold uppercase border cursor-pointer ${
+                            dateStampIncludeTime
+                              ? "bg-slate-800 text-white border-slate-800"
+                              : "bg-white text-slate-500 border-slate-300"
+                          }`}
+                        >
+                          {dateStampIncludeTime ? "ON" : "OFF"}
+                        </button>
+                      </div>
+
+                      {/* Live Stamp Sample Preview */}
+                      <div className="bg-black/90 p-2 text-center border border-slate-800 flex items-center justify-center gap-2">
+                        <span className="text-[7.5px] font-mono text-zinc-400 uppercase">PRATINJAU:</span>
+                        <span
+                          className="font-mono font-black tracking-widest text-[10px]"
+                          style={{
+                            color: dateStampColor,
+                            textShadow: `0 0 4px ${dateStampColor}, 0 0 8px ${dateStampColor}90`,
+                          }}
+                        >
+                          {formattedDateStamp}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* WATERMARK BRANDING CONTROLS */}
                 <div className="border-t border-slate-200 pt-3 flex flex-col gap-2">
                   <div className="flex items-center justify-between">
@@ -1440,12 +1642,24 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                           {caption}
                         </p>
                       )}
-                      <span
-                        className="text-[7.5px] font-mono opacity-65 tracking-widest uppercase leading-none text-center"
-                        style={{ color: selectedTheme.text }}
-                      >
-                        {new Date().toISOString().split("T")[0].replace(/-/g, ".")}
-                      </span>
+                      {dateStampEnabled && dateStampPosition === "footer" ? (
+                        <span
+                          className="text-[9px] font-mono font-black tracking-widest uppercase leading-none text-center px-1.5 py-0.5"
+                          style={{
+                            color: dateStampColor,
+                            textShadow: `0 0 3px ${dateStampColor}, 0 0 6px ${dateStampColor}90, 0 1px 2px rgba(0,0,0,0.8)`,
+                          }}
+                        >
+                          {formattedDateStamp}
+                        </span>
+                      ) : (
+                        <span
+                          className="text-[7.5px] font-mono opacity-65 tracking-widest uppercase leading-none text-center"
+                          style={{ color: selectedTheme.text }}
+                        >
+                          {new Date().toISOString().split("T")[0].replace(/-/g, ".")}
+                        </span>
+                      )}
                     </div>
                   ) : caption.trim() !== "" ? (
                     <div

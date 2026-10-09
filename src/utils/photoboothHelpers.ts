@@ -142,3 +142,35 @@ export function getFilteredPhotoFrames(
     })
   );
 }
+
+/**
+ * Formats a retro digital camera date stamp (Y2K / 90s vintage timestamp).
+ */
+export function formatRetroDateStamp(
+  date: Date = new Date(),
+  format: "YY MM DD" | "DD/MM/YYYY" | "MMM DD 'YY" = "YY MM DD",
+  includeTime: boolean = false
+): string {
+  const yy = String(date.getFullYear()).slice(-2);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const mmm = monthNames[date.getMonth()];
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+
+  let datePart = "";
+  if (format === "YY MM DD") {
+    datePart = `'${yy} ${mm} ${dd}`;
+  } else if (format === "DD/MM/YYYY") {
+    datePart = `${dd}.${mm}.${yyyy}`;
+  } else {
+    datePart = `${mmm} ${dd} '${yy}`;
+  }
+
+  if (includeTime) {
+    return `${datePart} ${hh}:${min}`;
+  }
+  return datePart;
+}
