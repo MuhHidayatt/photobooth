@@ -18,6 +18,8 @@ const EXPECTED = {
   "formula-1": { cols: 1, rows: 3 },
   vintage: { cols: 2, rows: 4 },
   flowers: { cols: 1, rows: 3 },
+  graduation: { cols: 1, rows: 3 },
+  "graduation-pastel": { cols: 2, rows: 3 },
 };
 
 // framePresets.ts is generated TS; parse the JSON array out of it to avoid a TS toolchain.
@@ -28,7 +30,7 @@ const PRESETS = JSON.parse(json);
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.log("   ✘ " + msg); } return cond; };
 
-ok(PRESETS.length === 8, `expected 8 presets, got ${PRESETS.length}`);
+ok(PRESETS.length === 10, `expected 10 presets, got ${PRESETS.length}`);
 
 for (const p of PRESETS) {
   console.log(`▶ ${p.id}`);

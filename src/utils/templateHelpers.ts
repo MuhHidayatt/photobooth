@@ -17,7 +17,7 @@ export const OFFICIAL_FRAME_TEMPLATES: CommunityFrameTemplate[] = FRAME_PRESETS.
   aspect_ratio: p.cols > 1 ? "1/1" : "4/3",
   bg_color: p.bg_color,
   text_color: p.text_color,
-  caption: p.name === "Birthday" ? "Happy Birthday" : p.name.toUpperCase(),
+  caption: p.name === "Birthday" ? "Happy Birthday" : p.name === "Graduation" ? "Happy Graduation" : p.name.toUpperCase(),
   default_filter: "none",
   stickers: [],
   image_url: p.image,

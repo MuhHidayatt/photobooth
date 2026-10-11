@@ -621,5 +621,155 @@ export const FRAME_PRESETS: FramePreset[] = [
         "height": 27.2
       }
     ]
+  },
+  {
+    "id": "graduation",
+    "name": "Graduation",
+    "description": "Momen wisuda berkelas dalam nuansa midnight navy & emas dengan toga, diploma, dan daun laurel.",
+    "image": "/frames/graduation.png",
+    "cols": 1,
+    "rows": 3,
+    "total": 3,
+    "width": 900,
+    "height": 2307,
+    "aspectRatio": 0.39,
+    "holeRadius": 16,
+    "type": "strip",
+    "bg_color": "#0E1B2E",
+    "text_color": "#FCE89B",
+    "badge": "Wisuda",
+    "holes": [
+      {
+        "x": 60,
+        "y": 240,
+        "width": 780,
+        "height": 585
+      },
+      {
+        "x": 60,
+        "y": 861,
+        "width": 780,
+        "height": 585
+      },
+      {
+        "x": 60,
+        "y": 1482,
+        "width": 780,
+        "height": 585
+      }
+    ],
+    "slots": [
+      {
+        "x": 6,
+        "y": 10.14,
+        "width": 88,
+        "height": 25.88
+      },
+      {
+        "x": 6,
+        "y": 37.06,
+        "width": 88,
+        "height": 25.88
+      },
+      {
+        "x": 6,
+        "y": 63.98,
+        "width": 88,
+        "height": 25.88
+      }
+    ]
+  },
+  {
+    "id": "graduation-pastel",
+    "name": "Graduation Pastel",
+    "description": "Wisuda pastel yang lucu: toga kawaii, balon, hati, dan bintang, 6 foto.",
+    "image": "/frames/graduation-pastel.png",
+    "cols": 2,
+    "rows": 3,
+    "total": 6,
+    "width": 1200,
+    "height": 1828,
+    "aspectRatio": 0.66,
+    "holeRadius": 22,
+    "type": "grid",
+    "bg_color": "#FFE6EF",
+    "text_color": "#E8719A",
+    "badge": "Wisuda Cute",
+    "holes": [
+      {
+        "x": 60,
+        "y": 310,
+        "width": 522,
+        "height": 392
+      },
+      {
+        "x": 618,
+        "y": 310,
+        "width": 522,
+        "height": 392
+      },
+      {
+        "x": 60,
+        "y": 738,
+        "width": 522,
+        "height": 392
+      },
+      {
+        "x": 618,
+        "y": 738,
+        "width": 522,
+        "height": 392
+      },
+      {
+        "x": 60,
+        "y": 1166,
+        "width": 522,
+        "height": 392
+      },
+      {
+        "x": 618,
+        "y": 1166,
+        "width": 522,
+        "height": 392
+      }
+    ],
+    "slots": [
+      {
+        "x": 4.5,
+        "y": 16.63,
+        "width": 44.5,
+        "height": 22.1
+      },
+      {
+        "x": 51,
+        "y": 16.63,
+        "width": 44.5,
+        "height": 22.1
+      },
+      {
+        "x": 4.5,
+        "y": 40.04,
+        "width": 44.5,
+        "height": 22.1
+      },
+      {
+        "x": 51,
+        "y": 40.04,
+        "width": 44.5,
+        "height": 22.1
+      },
+      {
+        "x": 4.5,
+        "y": 63.46,
+        "width": 44.5,
+        "height": 22.1
+      },
+      {
+        "x": 51,
+        "y": 63.46,
+        "width": 44.5,
+        "height": 22.1
+      }
+    ]
   }
 ];

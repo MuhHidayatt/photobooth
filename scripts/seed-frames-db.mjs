@@ -53,7 +53,7 @@ async function seed() {
       aspect_ratio: preset.cols > 1 ? "1/1" : "4/3",
       bg_color: preset.bg_color,
       text_color: preset.text_color,
-      caption: preset.name === "Birthday" ? "Happy Birthday" : preset.name.toUpperCase(),
+      caption: preset.name === "Birthday" ? "Happy Birthday" : preset.name === "Graduation" ? "Happy Graduation" : preset.name.toUpperCase(),
       default_filter: "none",
       stickers: [
         {

@@ -64,6 +64,66 @@ const leaf = (cx, cy, len, rot, fill) =>
   `<path transform="translate(${cx} ${cy}) rotate(${rot})" d="M0 0Q${len * 0.5} ${-len * 0.38} ${len} 0Q${len * 0.5} ${len * 0.38} 0 0Z" fill="${fill}"/>`;
 const note = (cx, cy, s, fill) =>
   `<g transform="translate(${cx} ${cy}) scale(${s})" fill="${fill}"><ellipse cx="0" cy="0" rx="9" ry="6.5" transform="rotate(-20)"/><rect x="6.5" y="-34" width="3.2" height="34"/><path d="M9.7 -34q16 6 10 22q2 -12 -10 -14z"/></g>`;
+const star4 = (cx, cy, r, fill) =>
+  `<path d="M${cx} ${cy - r} Q${cx} ${cy} ${cx + r} ${cy} Q${cx} ${cy} ${cx} ${cy + r} Q${cx} ${cy} ${cx - r} ${cy} Q${cx} ${cy} ${cx} ${cy - r} Z" fill="${fill}"/>`;
+const mortarboard = (cx, cy, s) => `<g transform="translate(${cx} ${cy}) scale(${s})">
+  <path d="M-32 8 Q0 30 32 8 L28 19 Q0 39 -28 19 Z" fill="#0A1526" stroke="#C89D3C" stroke-width="2"/>
+  <polygon points="0,-28 70,0 0,28 -70,0" fill="#13233E" stroke="#E6BE5A" stroke-width="4" stroke-linejoin="round"/>
+  <polygon points="0,-22 62,0 0,22 -62,0" fill="#1A2D4E"/>
+  <circle cx="0" cy="0" r="4.5" fill="#FCE89B"/>
+  <path d="M0 0 C26 -6 44 4 50 14 C54 22 53 32 51 40" fill="none" stroke="#E6BE5A" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="51" cy="42" rx="3" ry="1.8" fill="#C89D3C"/>
+  <path d="M48 44 L54 44 L56 64 L46 64 Z" fill="#FCE89B"/>
+  <line x1="48.5" y1="64" x2="48.5" y2="70" stroke="#C89D3C" stroke-width="1.2"/>
+  <line x1="51" y1="64" x2="51" y2="71" stroke="#C89D3C" stroke-width="1.2"/>
+  <line x1="53.5" y1="64" x2="53.5" y2="70" stroke="#C89D3C" stroke-width="1.2"/>
+</g>`;
+const diploma = (cx, cy, s, rot = 0) => `<g transform="translate(${cx} ${cy}) rotate(${rot}) scale(${s})">
+  <rect x="-50" y="-14" width="100" height="28" rx="4" fill="#FFFDF2" stroke="#D4AF37" stroke-width="2.5"/>
+  <ellipse cx="-50" cy="0" rx="4" ry="14" fill="#EDE4CE" stroke="#D4AF37" stroke-width="2"/>
+  <ellipse cx="50" cy="0" rx="4" ry="14" fill="#FFFDF2" stroke="#D4AF37" stroke-width="2"/>
+  <rect x="-9" y="-15" width="18" height="30" rx="2" fill="#C5221F" stroke="#8E1412" stroke-width="1.5"/>
+  <circle cx="0" cy="0" r="4.5" fill="#E63946"/>
+  <path d="M-3 3 Q-12 16 -18 25" stroke="#C5221F" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M3 3 Q12 16 18 25" stroke="#C5221F" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M-2 0 Q-14 -10 -10 0 Q-6 6 -2 0" fill="#E63946"/>
+  <path d="M2 0 Q14 -10 10 0 Q6 6 2 0" fill="#E63946"/>
+</g>`;
+const laurelWreath = (cx, cy, s) => `<g transform="translate(${cx} ${cy}) scale(${s})">
+  <path d="M-10 26 C-28 16 -44 -4 -36 -28 C-30 -48 -14 -60 0 -66" fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M10 26 C28 16 44 -4 36 -28 C30 -48 14 -60 0 -66" fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
+  <g fill="#F3CA52" stroke="#B8861B" stroke-width="1.2">
+    <ellipse cx="-18" cy="20" rx="7.5" ry="3.8" transform="rotate(-30 -18 20)"/>
+    <ellipse cx="-28" cy="8" rx="7.5" ry="3.8" transform="rotate(-40 -28 8)"/>
+    <ellipse cx="-36" cy="-6" rx="7.5" ry="3.8" transform="rotate(-60 -36 -6)"/>
+    <ellipse cx="-37" cy="-20" rx="7.5" ry="3.8" transform="rotate(-85 -37 -20)"/>
+    <ellipse cx="-30" cy="-35" rx="7.5" ry="3.8" transform="rotate(-115 -30 -35)"/>
+    <ellipse cx="-18" cy="-48" rx="7.5" ry="3.8" transform="rotate(-140 -18 -48)"/>
+  </g>
+  <g fill="#F3CA52" stroke="#B8861B" stroke-width="1.2">
+    <ellipse cx="18" cy="20" rx="7.5" ry="3.8" transform="rotate(30 18 20)"/>
+    <ellipse cx="30" cy="8" rx="7.5" ry="3.8" transform="rotate(40 30 8)"/>
+    <ellipse cx="36" cy="-6" rx="7.5" ry="3.8" transform="rotate(60 36 -6)"/>
+    <ellipse cx="37" cy="-20" rx="7.5" ry="3.8" transform="rotate(85 39 -20)"/>
+    <ellipse cx="30" cy="-35" rx="7.5" ry="3.8" transform="rotate(115 30 -35)"/>
+    <ellipse cx="18" cy="-48" rx="7.5" ry="3.8" transform="rotate(140 18 -48)"/>
+  </g>
+  <circle cx="0" cy="28" r="3" fill="#E63946"/>
+</g>`;
+const laurelSpray = (cx, cy, s, flip = 1) => `<g transform="translate(${cx} ${cy}) scale(${s * flip} ${s})">
+  <path d="M-60 0 C-30 -5 10 -5 50 0" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"/>
+  <g fill="#F3CA52" stroke="#B8861B" stroke-width="1.2">
+    <ellipse cx="-40" cy="-8" rx="8" ry="4" transform="rotate(-25 -40 -8)"/>
+    <ellipse cx="-20" cy="-9" rx="8" ry="4" transform="rotate(-15 -20 -9)"/>
+    <ellipse cx="0" cy="-9" rx="8" ry="4" transform="rotate(-5 0 -9)"/>
+    <ellipse cx="20" cy="-8" rx="8" ry="4" transform="rotate(10 20 -8)"/>
+    <ellipse cx="40" cy="-6" rx="8" ry="4" transform="rotate(20 40 -6)"/>
+    <ellipse cx="-30" cy="8" rx="8" ry="4" transform="rotate(25 -30 8)"/>
+    <ellipse cx="-10" cy="9" rx="8" ry="4" transform="rotate(15 -10 9)"/>
+    <ellipse cx="10" cy="9" rx="8" ry="4" transform="rotate(5 10 9)"/>
+    <ellipse cx="30" cy="8" rx="8" ry="4" transform="rotate(-10 30 8)"/>
+  </g>
+</g>`;
 const txt = (x, y, s, size, fill, opts = {}) => {
   const { family = "Georgia, serif", weight = "bold", style = "normal", anchor = "middle", ls = 0, stroke, sw = 0, skew = 0 } = opts;
   return `<text x="${x}" y="${y}" font-family="${family}" font-size="${size}" font-weight="${weight}" font-style="${style}" text-anchor="${anchor}" letter-spacing="${ls}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round" paint-order="stroke"` : ""}${skew ? ` transform="translate(${x} ${y}) skewX(${skew}) translate(${-x} ${-y})"` : ""}>${s}</text>`;
@@ -296,6 +356,108 @@ THEMES.push({
     }
     s += holeOutline(L, 22, "#C9B6F0", 10) + holeOutline(L, 22, "#fff", 5);
     s += border(L, 40, "#B7C9A8", 20) + border(L, 40, "#C9B6F0", 4, 20);
+    return s;
+  },
+});
+
+THEMES.push({
+  id: "graduation", file: "graduation.png", name: "Graduation", description: "Momen wisuda berkelas dalam nuansa midnight navy & emas dengan toga, diploma, dan daun laurel.",
+  bg_color: "#0E1B2E", text_color: "#FCE89B", badge: "Wisuda",
+  layout: layout({ W: 900, cols: 1, rows: 3, M: 60, G: 36, Ht: 240, Hb: 240 }), radius: 36, holeR: 16,
+  draw(L) {
+    let s = `<rect width="${L.W}" height="${L.H}" fill="#0E1B2E"/>`;
+    const golds = ["#FCE89B", "#F3CA52", "#E6BE5A", "#FFF3BF", "#D4AF37"];
+    for (let i = 0; i < 50; i++) {
+      const x = 32 + ((i * 179) % (L.W - 64));
+      const y = 30 + ((i * 353) % (L.H - 60));
+      const inHeaderText = y >= 130 && y <= 220;
+      const inFooterText = y >= (L.H - L.Hb + 90) && y <= (L.H - 30);
+      if (inHeaderText || inFooterText) continue;
+      if (i % 4 === 0) s += star4(x, y, 6 + (i % 4), golds[i % 5]);
+      else if (i % 4 === 1) s += star(x, y, 5 + (i % 4), golds[i % 5], (i * 29) % 360);
+      else s += dot(x, y, 2 + ((i % 3) * 1.1), golds[i % 5], 0.55);
+    }
+    const cornerB = (cx, cy, sx, sy) => `
+      <path d="M${cx + 36 * sx} ${cy} H${cx} V${cy + 36 * sy}" fill="none" stroke="#D4AF37" stroke-width="2"/>
+      <path d="M${cx + 26 * sx} ${cy + 8 * sy} H${cx + 8 * sx} V${cy + 26 * sy}" fill="none" stroke="#FCE89B" stroke-width="1.2"/>
+      ${star4(cx + 8 * sx, cy + 8 * sy, 4.5, "#FCE89B")}
+    `;
+    s += cornerB(38, 38, 1, 1) + cornerB(L.W - 38, 38, -1, 1) + cornerB(38, L.H - 38, 1, -1) + cornerB(L.W - 38, L.H - 38, -1, -1);
+    s += laurelWreath(450, 68, 0.75) + mortarboard(450, 52, 0.78);
+    s += star4(130, 66, 16, "#FCE89B") + star(210, 52, 11, "#F3CA52", 15) + star4(285, 78, 8, "#FFF3BF");
+    s += star4(770, 66, 16, "#FCE89B") + star(690, 52, 11, "#F3CA52", -15) + star4(615, 78, 8, "#FFF3BF");
+    s += txt(450, 158, "HAPPY GRADUATION", 66, "#FCE89B", { family: "Georgia, 'Times New Roman', serif", ls: 6, stroke: "#785307", sw: 4 });
+    s += txt(450, 200, "✦ CONGRATULATIONS · PROUD OF YOU ✦", 20, "#E2C374", { family: "'Trebuchet MS', Arial, sans-serif", ls: 5, weight: "bold" });
+    const g1y = L.holes[0].y + L.holes[0].h + Math.round(L.G / 2);
+    s += `<line x1="130" y1="${g1y}" x2="390" y2="${g1y}" stroke="#D4AF37" stroke-width="1.5" stroke-dasharray="8 4"/>`;
+    s += `<line x1="510" y1="${g1y}" x2="770" y2="${g1y}" stroke="#D4AF37" stroke-width="1.5" stroke-dasharray="8 4"/>`;
+    s += dot(415, g1y, 3, "#D4AF37") + star4(450, g1y, 8, "#FCE89B") + dot(485, g1y, 3, "#D4AF37");
+    const g2y = L.holes[1].y + L.holes[1].h + Math.round(L.G / 2);
+    s += `<line x1="130" y1="${g2y}" x2="390" y2="${g2y}" stroke="#D4AF37" stroke-width="1.5" stroke-dasharray="8 4"/>`;
+    s += `<line x1="510" y1="${g2y}" x2="770" y2="${g2y}" stroke="#D4AF37" stroke-width="1.5" stroke-dasharray="8 4"/>`;
+    s += dot(415, g2y, 3, "#D4AF37") + star4(450, g2y, 8, "#FCE89B") + dot(485, g2y, 3, "#D4AF37");
+    const fy = L.H - L.Hb;
+    s += laurelSpray(330, fy + 52, 0.7, -1) + diploma(450, fy + 52, 1.0, -2) + laurelSpray(570, fy + 52, 0.7, 1);
+    s += star4(170, fy + 52, 14, "#FCE89B") + star(245, fy + 42, 10, "#F3CA52", 18);
+    s += star4(730, fy + 52, 14, "#FCE89B") + star(655, fy + 42, 10, "#F3CA52", -18);
+    s += txt(450, fy + 120, "CONGRATS GRAD!", 64, "#FCE89B", { family: "Georgia, 'Times New Roman', serif", ls: 5, stroke: "#785307", sw: 4 });
+    s += txt(450, fy + 160, "The Best is Yet to Come · Never Stop Learning", 23, "#E2C374", { family: "Georgia, serif", style: "italic", ls: 2, weight: "normal" });
+    s += `<line x1="150" y1="${fy + 180}" x2="750" y2="${fy + 180}" stroke="#D4AF37" stroke-width="1.2" opacity="0.75"/>`;
+    s += txt(150, fy + 204, "POSEAN PHOTOBOOTH", 15, "#9EAEC7", { family: "'Courier New', monospace", anchor: "start", ls: 4, weight: "bold" });
+    s += star4(450, fy + 200, 6, "#FCE89B");
+    s += txt(750, fy + 204, "HONORS &amp; SUCCESS", 15, "#D4AF37", { family: "'Courier New', monospace", anchor: "end", ls: 4, weight: "bold" });
+    s += holeOutline(L, 16, "#785307", 10) + holeOutline(L, 16, "#FCE89B", 4);
+    s += border(L, 36, "#785307", 20) + border(L, 36, "#FCE89B", 4, 18);
+    return s;
+  },
+});
+
+THEMES.push({
+  id: "graduation-pastel", file: "graduation-pastel.png", name: "Graduation Pastel", description: "Wisuda pastel yang lucu: toga kawaii, balon, hati, dan bintang, 6 foto.",
+  bg_color: "#FFE6EF", text_color: "#E8719A", badge: "Wisuda Cute",
+  layout: layout({ W: 1200, cols: 2, rows: 3, M: 60, G: 36, Ht: 310, Hb: 270 }), radius: 44, holeR: 22,
+  draw(L) {
+    const pastel = ["#F7A8C4", "#C9B6F0", "#BDE8D8", "#FFE08A", "#A9D6F5"];
+    let s = `<rect width="${L.W}" height="${L.H}" fill="#FFE6EF"/><rect x="26" y="26" width="${L.W - 52}" height="${L.H - 52}" rx="34" fill="#FFF6FA"/>`;
+    for (let i = 0; i < 46; i++) {
+      const x = 40 + ((i * 197) % (L.W - 80)), y = 40 + ((i * 331) % (L.H - 80));
+      if (y > 235 && y < L.H - 200) { if (x > 40 && x < L.W - 40) continue; }
+      if (i % 3 === 0) s += heart(x, y, 12, pastel[i % 5], ((i * 31) % 40) - 20);
+      else if (i % 3 === 1) s += star(x, y, 8, pastel[i % 5], i * 17);
+      else s += dot(x, y, 5, pastel[i % 5], 0.7);
+    }
+    // cute kawaii graduation cap (with a smiling face)
+    const cap = (cx, cy, k) => `<g transform="translate(${cx} ${cy}) scale(${k})">
+      <path d="M-44 6Q0 56 44 6L44 34Q0 72 -44 34Z" fill="#FFE3EC" stroke="#E8719A" stroke-width="4" stroke-linejoin="round"/>
+      <polygon points="0,-40 98,0 0,40 -98,0" fill="#C9B6F0" stroke="#8F7AD6" stroke-width="5" stroke-linejoin="round"/>
+      <polygon points="0,-30 80,0 0,30 -80,0" fill="#D9CCF7"/>
+      <circle r="7" fill="#FFE08A" stroke="#E0A93B" stroke-width="3"/>
+      <path d="M0 0C34 -8 62 8 70 26C74 38 72 50 70 60" fill="none" stroke="#F7A8C4" stroke-width="5" stroke-linecap="round"/>
+      <path d="M62 60L78 60L82 92L58 92Z" fill="#F7A8C4"/><path d="M62 60H78" stroke="#E8719A" stroke-width="4"/>
+      <circle cx="-15" cy="30" r="5" fill="#3a3238"/><circle cx="15" cy="30" r="5" fill="#3a3238"/>
+      <circle cx="-13" cy="28" r="1.8" fill="#fff"/><circle cx="17" cy="28" r="1.8" fill="#fff"/>
+      <ellipse cx="-27" cy="38" rx="8" ry="5" fill="#FF9DB5" opacity="0.8"/><ellipse cx="27" cy="38" rx="8" ry="5" fill="#FF9DB5" opacity="0.8"/>
+      <path d="M-7 38Q0 46 7 38" stroke="#8a3b55" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </g>`;
+    s += cap(600, 86, 1.25);
+    s += balloon(130, 110, 32, "#F7A8C4") + balloon(1070, 110, 32, "#A9D6F5");
+    s += star(330, 70, 14, "#FFE08A", 12) + star(870, 70, 14, "#FFE08A", -12) + heart(400, 120, 18, "#F7A8C4") + heart(800, 120, 18, "#F7A8C4");
+    s += txt(600, 262, "Happy Graduation", 84, "#E8719A", { style: "italic", stroke: "#fff", sw: 12 });
+    // gap decorations
+    for (const r of [0, 1]) {
+      const gy = L.holes[r * 2].y + L.holes[r * 2].h + L.G / 2;
+      s += `<line x1="90" y1="${gy}" x2="540" y2="${gy}" stroke="#F7A8C4" stroke-width="3" stroke-dasharray="3 10" stroke-linecap="round"/><line x1="660" y1="${gy}" x2="1110" y2="${gy}" stroke="#F7A8C4" stroke-width="3" stroke-dasharray="3 10" stroke-linecap="round"/>`;
+      s += heart(600, gy + 2, 16, "#F7A8C4");
+    }
+    // footer
+    const fy = L.H - L.Hb;
+    s += diploma(600, fy + 62, 1.25, -3);
+    s += heart(400, fy + 60, 22, "#F7A8C4") + heart(800, fy + 60, 22, "#C9B6F0") + star(330, fy + 90, 16, "#FFE08A", 10) + star(870, fy + 90, 16, "#FFE08A", -10);
+    s += flower(180, fy + 100, 24, "#F7B6CB", "#FFE08A", 5) + flower(1020, fy + 100, 24, "#C9B6F0", "#FFE08A", 5);
+    s += txt(600, fy + 175, "Congrats, Grad!", 62, "#E8719A", { style: "italic", stroke: "#fff", sw: 10 });
+    s += txt(600, fy + 220, "so proud of you", 24, "#C9899F", { style: "italic", weight: "normal" });
+    s += holeOutline(L, 22, "#C9B6F0", 12) + holeOutline(L, 22, "#fff", 6);
+    s += border(L, 44, "#F7B6CF", 22) + border(L, 44, "#fff", 8, 26);
     return s;
   },
 });

@@ -538,9 +538,33 @@ export const usePhotoboothStore = create<PhotoboothState>()(
     }),
     {
       name: "posean_photobooth_session",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (key: string): string | null => {
+          try {
+            if (typeof window === "undefined" || !window.sessionStorage) return null;
+            return window.sessionStorage.getItem(key);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (key: string, value: string): void => {
+          try {
+            if (typeof window === "undefined" || !window.sessionStorage) return;
+            window.sessionStorage.setItem(key, value);
+          } catch (err) {
+            console.warn("[PhotoboothStore] Storage quota exceeded or disabled, skipping session save:", err);
+          }
+        },
+        removeItem: (key: string): void => {
+          try {
+            if (typeof window === "undefined" || !window.sessionStorage) return;
+            window.sessionStorage.removeItem(key);
+          } catch {}
+        },
+      })),
+      // Only persist lightweight session state (NEVER huge multi-megabyte export files like GIFs and PNGs)
       partialize: (state) => ({
-        step: state.step,
+        step: state.step === "export" ? "editor" : state.step,
         selectedLayout: state.selectedLayout,
         selectedTheme: state.selectedTheme,
         countdownTime: state.countdownTime,
@@ -561,10 +585,6 @@ export const usePhotoboothStore = create<PhotoboothState>()(
         dateStampIncludeTime: state.dateStampIncludeTime,
         dateStampPosition: state.dateStampPosition,
         cloudImageUrl: state.cloudImageUrl,
-        exportJpgUrl: state.exportJpgUrl,
-        exportPngUrl: state.exportPngUrl,
-        exportGifUrl: state.exportGifUrl,
-        exportVideoUrl: state.exportVideoUrl,
         audioMuted: state.audioMuted,
         musicTrack: state.musicTrack,
         musicVolume: state.musicVolume,
@@ -572,4 +592,5 @@ export const usePhotoboothStore = create<PhotoboothState>()(
     }
   )
 );
+
 

@@ -32,10 +32,11 @@ export default function LayoutStep() {
     applyFilter,
     setStep,
     setFrameImage,
+    capturedPhotos,
   } = usePhotoboothStore();
   const { user, profile, setIsPro } = useAuthStore();
 
-  const [activeTab, setActiveTab] = useState<"standard" | "themes" | "community">("standard");
+  const [activeTab, setActiveTab] = useState<"themes" | "community">("themes");
   const [allLayouts, setAllLayouts] = useState<LayoutOption[]>(LAYOUTS);
   const [communityTemplates, setCommunityTemplates] = useState<CommunityFrameTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +113,7 @@ export default function LayoutStep() {
       });
     }
 
-    setStep("camera");
+    setStep(capturedPhotos.length > 0 ? "editor" : "camera");
   };
 
   // Apply one of the 8 built-in themed frames (transparent PNG overlay + explicit grid slots)
@@ -138,7 +139,7 @@ export default function LayoutStep() {
     setCaption("");
     setStickers([]);
     setFrameImage(preset.image, "overlay", preset.slots, preset.aspectRatio);
-    setStep("camera");
+    setStep(capturedPhotos.length > 0 ? "editor" : "camera");
   };
 
   // Handle selection of community template
@@ -228,7 +229,7 @@ export default function LayoutStep() {
     // 7. Increment usage
     await incrementTemplateUsage(template.id);
 
-    setStep("camera");
+    setStep(capturedPhotos.length > 0 ? "editor" : "camera");
   };
 
   const handleUnlockProDemo = async () => {
@@ -260,22 +261,12 @@ export default function LayoutStep() {
           Pilih Format Photobooth
         </h2>
         <p className="text-[10px] text-slate-400 font-mono">
-          Gunakan layout standar atau pilih kreasi frame dari komunitas
+          Pilih tema frame atau kreasi frame dari komunitas
         </p>
       </div>
 
       {/* TAB SELECTOR: STANDAR VS KOMUNITAS */}
       <div className="w-full max-w-sm sm:max-w-xl flex items-center border border-slate-900 bg-white p-1 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-mono text-[10px] sm:text-xs select-none">
-        <button
-          onClick={() => setActiveTab("standard")}
-          className={`flex-1 py-2 sm:py-2.5 px-2 text-center font-bold uppercase transition-all cursor-pointer ${
-            activeTab === "standard"
-              ? "bg-slate-900 text-white"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          Layout Standar
-        </button>
         <button
           onClick={() => setActiveTab("themes")}
           data-testid="tab-frame-themes"
@@ -334,91 +325,6 @@ export default function LayoutStep() {
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* TAB 1: STANDARD & CMS LAYOUTS */}
-      {activeTab === "standard" && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-4 w-full max-w-sm sm:max-w-3xl lg:max-w-4xl mt-1 select-none">
-          {allLayouts.map((layout) => {
-            const isSelected = selectedLayout.id === layout.id;
-            const isPro = !!layout.is_pro;
-
-            return (
-              <button
-                key={layout.id}
-                onClick={() => handleSelectLayout(layout)}
-                className={`flex flex-col items-center p-3 sm:p-4 lg:p-5 rounded-none border transition-all cursor-pointer justify-between relative group ${
-                  isSelected
-                    ? "border-slate-900 bg-slate-900/5 scale-98 shadow-none"
-                    : isPro
-                      ? "border-amber-400 bg-gradient-to-b from-amber-50/40 to-white hover:border-slate-900 shadow-[3px_3px_0px_0px_rgba(245,158,11,1)]"
-                      : "border-slate-350 bg-white hover:bg-slate-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                }`}
-                style={isSelected ? { borderWidth: "3px" } : {}}
-              >
-                {/* Badge */}
-                {isPro ? (
-                  <span className="absolute -top-2.5 px-2 py-0.5 bg-amber-400 text-slate-950 border border-slate-950 text-[7.5px] font-black font-mono uppercase tracking-wider flex items-center gap-0.5 shadow-xs">
-                    <Crown size={9} />
-                    <span>★ PRO</span>
-                  </span>
-                ) : layout.badge ? (
-                  <span className="absolute -top-2 px-1.5 py-0.5 bg-[#FFE66D] text-slate-900 border border-slate-900 text-[7px] font-black font-mono uppercase tracking-wider">
-                    {layout.badge}
-                  </span>
-                ) : null}
-
-                {/* Layout Preview Graphic */}
-                {layout.type === "grid" ? (
-                  <div
-                    className="w-16 h-20 sm:w-16 sm:h-24 lg:w-20 lg:h-28 border border-slate-800 p-1.5 grid grid-cols-2 gap-1 rounded-none mb-2.5 transition-transform group-hover:scale-102"
-                    style={{
-                      backgroundColor: layout.bg_color || "#F8FAFC",
-                      borderColor: layout.text_color || "#0F172A",
-                    }}
-                  >
-                    {Array.from({ length: 4 }).map((_, fIdx) => (
-                      <div
-                        key={fIdx}
-                        className="w-full h-full border border-slate-300 bg-zinc-200 rounded-none aspect-[4/3]"
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className="w-10 h-20 sm:w-12 sm:h-24 lg:w-14 lg:h-28 border border-slate-800 p-1 flex flex-col gap-1 rounded-none mb-2.5 transition-transform group-hover:scale-102"
-                    style={{
-                      backgroundColor: layout.bg_color || "#F8FAFC",
-                      borderColor: layout.text_color || "#0F172A",
-                    }}
-                  >
-                    {Array.from({ length: layout.frames }).map((_, fIdx) => (
-                      <div
-                        key={fIdx}
-                        className="w-full flex-1 border border-slate-300 bg-zinc-200 rounded-none"
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <div className="text-center w-full">
-                  <span className="text-[10px] sm:text-xs font-black text-slate-900 font-mono uppercase tracking-tight block truncate">
-                    {layout.name}
-                  </span>
-                  <span className="text-[8px] text-slate-400 font-mono flex items-center justify-center gap-1 mt-0.5">
-                    <span>{layout.frames} Snaps</span>
-                    {layout.bg_color && (
-                      <span
-                        className="w-2 h-2 rounded-full border border-slate-400"
-                        style={{ backgroundColor: layout.bg_color }}
-                      />
-                    )}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
         </div>
       )}
 

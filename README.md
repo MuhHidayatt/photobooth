@@ -13,8 +13,8 @@
 
 ## ✨ Fitur Unggulan (Core Features)
 
-### 1. 🎨 8 Tema Frame Resmi & Desain Grafis Transparan
-Posean dilengkapi dengan 8 preset frame portrait resmi yang siap pakai dengan cutout transparan berkualitas tinggi (alpha channel murni):
+### 1. 🎨 10 Tema Frame Resmi & Desain Grafis Transparan
+Posean dilengkapi dengan 10 preset frame portrait resmi yang siap pakai dengan cutout transparan berkualitas tinggi (alpha channel murni):
 * **Birthday Celebration** (2x3 = 6 foto) — Nuansa pastel party, balon, lilin, dan kue ulang tahun.
 * **Nailong Dino** (1x4 = 4 foto) — Maskot dinosaurus kuning ceria dan menggemaskan.
 * **Hello Kitty Kawaii** (1x4 = 4 foto) — Nuansa pink feminin, pita manis, dan ornamen hati.
@@ -23,6 +23,8 @@ Posean dilengkapi dengan 8 preset frame portrait resmi yang siap pakai dengan cu
 * **Formula 1 Grand Prix** (1x3 = 3 foto) — Nuansa balap motorsport dinamis dengan bendera catur.
 * **Vintage 35mm Film** (2x4 = 8 foto) — Klise rol film analog 35mm klasik bertekstur grain hangat.
 * **Flowers Garden** (1x3 = 3 foto) — Estetika floral botani lembut dengan daun dan bunga mekar.
+* **Graduation Day** (1x3 = 3 foto vertical) — Nuansa wisuda mewah midnight navy & emas dengan toga, diploma, dan daun laurel kehormatan.
+* **Graduation Pastel** (2x3 = 6 foto) — Wisuda pastel lucu dengan toga kawaii, balon, hati, dan bintang.
 
 ### 2. ✂️ Dukungan Frame Kustom Canva / Photoshop (Auto-Slot Detection)
 * Pengguna dapat mengunggah desain frame mereka sendiri langsung dari Canva atau Photoshop (PNG transparan).

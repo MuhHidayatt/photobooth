@@ -4,7 +4,6 @@ import React, { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toJpeg, toPng } from "html-to-image";
-import gifshot from "gifshot";
 import Link from "next/link";
 import {
   Sparkles,
@@ -21,8 +20,10 @@ import {
   Upload,
   Clock,
   Calendar,
+  Camera,
 } from "lucide-react";
 import { STICKERS } from "@/components/StickerAssets";
+import { FRAME_PRESETS, FramePreset } from "@/data/framePresets";
 import {
   usePhotoboothStore,
   THEMES,
@@ -32,7 +33,6 @@ import {
 import { useAuthStore } from "@/store/useAuthStore";
 import {
   generateRandomDoodles,
-  getFilteredPhotoFrames,
   formatRetroDateStamp,
 } from "@/utils/photoboothHelpers";
 import { detectFrameSlots } from "@/utils/frameDetector";
@@ -50,7 +50,9 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
   const {
     setStep,
     selectedLayout,
+    setSelectedLayout,
     capturedPhotos,
+    setCapturedPhotos,
     setSingleRetakeIndex,
     activePhotoEffects,
     globalFilter,
@@ -93,6 +95,7 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setExportPngUrl,
     setExportGifUrl,
     setExportVideoUrl,
+    isGeneratingJpg,
     setIsGeneratingJpg,
     setIsGeneratingGif,
     resetStore,
@@ -346,17 +349,43 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     setStickers(newStickers);
   };
 
+  const handleSelectPresetInEditor = (preset: FramePreset) => {
+    setSelectedLayout({
+      id: `preset_${preset.id}`,
+      name: preset.name,
+      frames: preset.total,
+      previewClass: preset.type === "grid" ? "grid-cols-2" : `grid-rows-${preset.total}`,
+      type: preset.type,
+      badge: preset.badge,
+    });
+    setSelectedTheme({
+      id: `preset_${preset.id}`,
+      name: preset.name,
+      bg: preset.bg_color,
+      text: preset.text_color,
+      border: `border border-[${preset.text_color}]`,
+      accent: preset.bg_color,
+      uiBg: "#FFFFFF",
+      uiActiveBg: preset.bg_color,
+    });
+    setFrameImage(preset.image, "overlay", preset.slots, preset.aspectRatio);
+  };
+
+  const handleRemoveFrameInEditor = () => {
+    setFrameImage(null);
+  };
+
   const triggerSingleRetake = (index: number) => {
     setSingleRetakeIndex(index);
     setStep("camera");
   };
 
-  // Compile HD Exports (JPG & GIF)
+  // Compile HD Exports (JPG & PNG)
   const compileHdExports = async () => {
+    if (isGeneratingJpg) return;
     setSelectedStickerId(null);
     setExportVideoUrl(null);
     setIsGeneratingJpg(true);
-    setIsGeneratingGif(true);
 
     let finalJpgUrl = "";
 
@@ -364,19 +393,19 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
     const originalScale = previewScale;
     setPreviewScale(1);
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 80));
 
     // 1. Generate high-res JPG & transparent PNG
     try {
       if (editorStripRef.current) {
         const [jpgDataUrl, pngDataUrl] = await Promise.all([
           toJpeg(editorStripRef.current, {
-            quality: 1.0,
-            pixelRatio: 4, // 4x is high-resolution and very crisp
+            quality: 0.98,
+            pixelRatio: 3, // Crisp 3x print resolution, super fast capture
             backgroundColor: selectedTheme.bg,
           }),
           toPng(editorStripRef.current, {
-            pixelRatio: 4,
+            pixelRatio: 3,
           }),
         ]);
         finalJpgUrl = jpgDataUrl;
@@ -390,87 +419,8 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
       setPreviewScale(originalScale);
     }
 
-    // 2. Generate HD GIF from captured photos
-    try {
-      if (capturedPhotos.length > 0) {
-        const intervalVal = 0.1;
-        const processedFrames = await getFilteredPhotoFrames(
-          capturedPhotos,
-          activePhotoEffects,
-          globalFilter
-        );
-
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 640;
-          let gifW = img.naturalWidth || 640;
-          let gifH = img.naturalHeight || 480;
-          if (gifW > maxDim || gifH > maxDim) {
-            if (gifW > gifH) {
-              gifH = Math.round((gifH * maxDim) / gifW);
-              gifW = maxDim;
-            } else {
-              gifW = Math.round((gifW * maxDim) / gifH);
-              gifH = maxDim;
-            }
-          }
-
-          gifshot.createGIF(
-            {
-              images: processedFrames,
-              gifWidth: gifW,
-              gifHeight: gifH,
-              interval: intervalVal,
-              numFrames: processedFrames.length,
-              frameDuration: intervalVal * 100,
-              numWorkers: 2,
-            },
-            (obj) => {
-              let finalGif = null;
-              if (!obj.error) {
-                setExportGifUrl(obj.image);
-                finalGif = obj.image;
-              } else {
-                console.error("Gifshot failed:", obj.errorMsg);
-              }
-              setIsGeneratingGif(false);
-              onExportsCompleted(finalJpgUrl, finalGif);
-            }
-          );
-        };
-
-        img.onerror = () => {
-          gifshot.createGIF(
-            {
-              images: processedFrames,
-              gifWidth: 640,
-              gifHeight: 480,
-              interval: intervalVal,
-              numFrames: processedFrames.length,
-              frameDuration: intervalVal * 100,
-              numWorkers: 2,
-            },
-            (obj) => {
-              let finalGif = null;
-              if (!obj.error) {
-                setExportGifUrl(obj.image);
-                finalGif = obj.image;
-              }
-              setIsGeneratingGif(false);
-              onExportsCompleted(finalJpgUrl, finalGif);
-            }
-          );
-        };
-        img.src = processedFrames[0] || capturedPhotos[0];
-      } else {
-        setIsGeneratingGif(false);
-        onExportsCompleted(finalJpgUrl, null);
-      }
-    } catch (e) {
-      console.error("GIF export failed:", e);
-      setIsGeneratingGif(false);
-      onExportsCompleted(finalJpgUrl, null);
-    }
+    // Instantly transition to export step without blocking GIF compilation
+    onExportsCompleted(finalJpgUrl, null);
   };
 
   // Render photo grid (supports vertical strip, 2x2 grid, and custom calibrated Canva slots)
@@ -536,17 +486,6 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                       </button>
                     </div>
 
-                    <span
-                      className="absolute top-2 right-2 text-[8px] font-mono px-1.5 py-0.5 rounded-none border select-none opacity-85 z-20"
-                      style={{
-                        backgroundColor: selectedTheme.bg,
-                        color: selectedTheme.text,
-                        borderColor: selectedTheme.text,
-                      }}
-                    >
-                      #{index + 1}
-                    </span>
-
                     {/* Glowing Vintage Polaroid / Digicam Date Stamp */}
                     {dateStampEnabled && dateStampPosition === "each_photo" && (
                       <span
@@ -561,7 +500,18 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                     )}
                   </>
                 ) : (
-                  <span className="font-mono text-xs opacity-30">Slot #{index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerSingleRetake(index);
+                    }}
+                    className="py-1 px-2 bg-white/95 hover:bg-white text-slate-800 rounded-none font-mono text-[8.5px] font-bold border border-slate-700 flex items-center gap-1 active:scale-95 shadow cursor-pointer z-10"
+                    title={`Ambil foto untuk slot #${index + 1}`}
+                  >
+                    <Camera size={10} />
+                    <span>+ Foto #{index + 1}</span>
+                  </button>
                 )}
               </div>
             );
@@ -632,17 +582,6 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                     </button>
                   </div>
 
-                  <span
-                    className="absolute top-2 right-2 text-[8px] font-mono px-1.5 py-0.5 rounded-none border select-none opacity-85 z-20"
-                    style={{
-                      backgroundColor: selectedTheme.bg,
-                      color: selectedTheme.text,
-                      borderColor: textCol,
-                    }}
-                  >
-                    {index + 1}
-                  </span>
-
                   {/* Active Filter Pill Badge */}
                   {effect.filter && effect.filter !== "none" && (
                     <span
@@ -672,13 +611,18 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
                   )}
                 </>
               ) : (
-                <div
-                  className="font-mono text-[9px] flex flex-col items-center gap-1 select-none"
-                  style={{ color: `${selectedTheme.text}60` }}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerSingleRetake(index);
+                  }}
+                  className="py-1.5 px-3 bg-white/95 hover:bg-white text-slate-800 rounded-none font-mono text-[9px] font-bold border border-slate-700 flex flex-col items-center gap-1 active:scale-95 shadow cursor-pointer"
+                  title={`Ambil foto untuk frame #${index + 1}`}
                 >
-                  <ImageIcon size={16} className="stroke-1 animate-pulse" />
-                  <span>FRAME {index + 1}</span>
-                </div>
+                  <Camera size={13} className="text-slate-600" />
+                  <span>+ Ambil Foto #{index + 1}</span>
+                </button>
               )}
             </div>
           );
@@ -793,9 +737,112 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
           </div>
 
           <div className="p-4 max-h-[220px] lg:max-h-[340px] overflow-y-auto bg-slate-50/40">
-            {/* THEMES TAB */}
+            {/* THEMES & FRAMES TAB */}
             {editorTab === "theme" && (
-              <div className="space-y-3 pb-1 select-none">
+              <div className="space-y-3.5 pb-1 select-none">
+                {/* Missing Photos Alert if user switched to frame with more photo slots */}
+                {capturedPhotos.length < selectedLayout.frames && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-300 flex items-center justify-between gap-2 text-[9px] font-mono text-amber-900 shadow-xs">
+                    <span>⚠️ Butuh {selectedLayout.frames - capturedPhotos.length} foto lagi untuk tema ini</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSingleRetakeIndex(capturedPhotos.length);
+                        setStep("camera");
+                      }}
+                      className="px-2 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold border border-slate-900 flex-shrink-0 cursor-pointer"
+                    >
+                      + Ambil Foto
+                    </button>
+                  </div>
+                )}
+
+                {/* KOLEKSI TEMA FRAME */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between font-mono text-[8px] lg:text-[9px] font-bold text-slate-500 uppercase">
+                    <span>PILIH TEMA FRAME ({FRAME_PRESETS.length}):</span>
+                    {frameImageUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveFrameInEditor}
+                        className="text-red-500 hover:underline cursor-pointer"
+                      >
+                        Strip Polos (Tanpa Frame)
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Option: Strip Polos */}
+                    <button
+                      type="button"
+                      onClick={handleRemoveFrameInEditor}
+                      className={`p-2 border text-left flex flex-col items-center justify-between gap-1 transition-all cursor-pointer ${
+                        !frameImageUrl
+                          ? "border-slate-900 bg-slate-900 text-white shadow-sm ring-1 ring-slate-900"
+                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-800"
+                      }`}
+                    >
+                      <div className="w-full h-16 flex items-center justify-center bg-slate-100 border border-slate-200">
+                        <span className="font-mono text-[9px] font-bold uppercase text-slate-600">Polos</span>
+                      </div>
+                      <div className="w-full flex items-center justify-between pt-1">
+                        <span className={`font-mono text-[9.5px] font-bold truncate ${!frameImageUrl ? "text-white" : "text-slate-900"}`}>
+                          Strip Polos
+                        </span>
+                        {!frameImageUrl && <CheckCircle size={12} className="text-[#FFE66D] flex-shrink-0" />}
+                      </div>
+                      <span className={`w-full font-mono text-[8px] truncate ${!frameImageUrl ? "text-slate-300" : "text-slate-500"}`}>
+                        Tanpa overlay
+                      </span>
+                    </button>
+
+                    {/* Frame Presets */}
+                    {FRAME_PRESETS.map((preset) => {
+                      const isSelected = frameImageUrl === preset.image;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPresetInEditor(preset)}
+                          className={`p-2 border text-left flex flex-col items-center justify-between gap-1 transition-all cursor-pointer ${
+                            isSelected
+                              ? "border-slate-900 bg-slate-900 text-white shadow-sm ring-1 ring-slate-900"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-800"
+                          }`}
+                        >
+                          <div className="w-full h-16 flex items-center justify-center bg-gradient-to-br from-sky-100 via-rose-50 to-amber-50 border border-slate-200 p-1 overflow-hidden">
+                            <img
+                              src={preset.image}
+                              alt={preset.name}
+                              className="max-h-full max-w-full object-contain drop-shadow-sm"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="w-full flex items-center justify-between pt-1">
+                            <span className={`font-mono text-[9.5px] font-bold truncate ${isSelected ? "text-white" : "text-slate-900"}`}>
+                              {preset.name}
+                            </span>
+                            {isSelected && <CheckCircle size={12} className="text-[#FFE66D] flex-shrink-0" />}
+                          </div>
+                          <span className={`w-full font-mono text-[8px] truncate ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
+                            {preset.cols}×{preset.rows} · {preset.total} Foto
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setStep("layout")}
+                    className="w-full py-2 px-2.5 border border-slate-800 bg-amber-50 hover:bg-amber-100 text-slate-900 font-mono text-[9px] font-bold text-center flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Sparkles size={11} className="text-amber-600" />
+                    <span>Lihat Koleksi Template Komunitas →</span>
+                  </button>
+                </div>
+
                 {/* Custom Canva/PNG Frame Upload Bar */}
                 <div className="p-3 border border-dashed border-slate-400 bg-amber-50/60 flex flex-col gap-2">
                   <div className="flex items-center justify-between">
@@ -1459,21 +1506,46 @@ export default function EditorStep({ onExportsCompleted }: EditorStepProps) {
         <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-white/95 backdrop-blur-md border-t border-slate-300 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] flex gap-2.5 justify-center lg:static lg:bg-transparent lg:border-none lg:shadow-none lg:p-0 lg:mt-1">
           <button
             onClick={() => {
-              if (confirm("Restart photoshoot? All current photos will be deleted.")) {
-                resetStore();
+              if (confirm("Ulangi semua foto? Foto saat ini akan diganti dengan yang baru.")) {
+                setCapturedPhotos([]);
+                setSingleRetakeIndex(null);
+                setExportJpgUrl(null);
+                setExportPngUrl(null);
+                setExportGifUrl(null);
+                setExportVideoUrl(null);
                 setStep("camera");
               }
             }}
             className="py-3 px-3.5 border border-slate-800 bg-white text-slate-800 font-mono text-[10px] sm:text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-50 active:translate-y-0.5 cursor-pointer flex-shrink-0"
+            title="Ambil ulang semua foto dengan tetap memakai frame ini"
           >
             Retake All
           </button>
           <button
-            onClick={compileHdExports}
-            className="flex-1 max-w-sm lg:max-w-none py-3 px-4 border border-slate-800 bg-slate-900 text-white font-mono text-[11px] sm:text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-95 transition-transform flex items-center justify-center gap-1.5 cursor-pointer"
+            type="button"
+            onClick={() => setEditorTab("theme")}
+            className="py-3 px-3.5 border border-slate-800 bg-[#FFE66D] text-slate-900 font-mono text-[10px] sm:text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-amber-300 active:translate-y-0.5 cursor-pointer flex-shrink-0 flex items-center gap-1"
+            title="Pilih tema frame lain di panel desain"
           >
-            <Sparkles size={13} className="text-[#FFE66D]" />
-            <span>Export HD Strip</span>
+            <Layers size={13} />
+            <span>Ganti Frame</span>
+          </button>
+          <button
+            onClick={compileHdExports}
+            disabled={isGeneratingJpg}
+            className="flex-1 max-w-sm lg:max-w-none py-3 px-4 border border-slate-800 bg-slate-900 text-white font-mono text-[11px] sm:text-xs font-bold rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-95 transition-transform flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-75"
+          >
+            {isGeneratingJpg ? (
+              <>
+                <RotateCw size={13} className="animate-spin text-[#FFE66D]" />
+                <span>Menyiapkan Strip...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={13} className="text-[#FFE66D]" />
+                <span>Export HD Strip</span>
+              </>
+            )}
           </button>
         </div>
 
